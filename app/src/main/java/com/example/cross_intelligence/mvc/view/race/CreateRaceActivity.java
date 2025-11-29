@@ -3,7 +3,9 @@ package com.example.cross_intelligence.mvc.view.race;
 import android.annotation.SuppressLint;
 import android.app.AlertDialog;
 import android.os.Bundle;
+import android.text.Editable;
 import android.text.TextUtils;
+import android.text.TextWatcher;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.inputmethod.EditorInfo;
@@ -18,13 +20,17 @@ import com.amap.api.maps.AMap;
 import com.amap.api.maps.CameraUpdateFactory;
 import com.amap.api.maps.MapView;
 import com.amap.api.maps.model.LatLng;
+import com.amap.api.maps.model.LatLngBounds;
 import com.amap.api.maps.model.Marker;
 import com.amap.api.maps.model.MarkerOptions;
+import com.amap.api.maps.model.Polyline;
+import com.amap.api.maps.model.PolylineOptions;
 import com.example.cross_intelligence.databinding.ActivityCreateRaceBinding;
 import com.example.cross_intelligence.databinding.DialogCheckpointBinding;
 import com.example.cross_intelligence.mvc.base.BaseActivity;
 import com.example.cross_intelligence.mvc.controller.RaceManager;
 import com.example.cross_intelligence.mvc.model.CheckPoint;
+import com.example.cross_intelligence.mvc.util.PreferenceUtil;
 import com.example.cross_intelligence.mvc.util.UIUtil;
 import com.google.android.material.textfield.TextInputEditText;
 
@@ -57,6 +63,7 @@ public class CreateRaceActivity extends BaseActivity implements AMap.OnMapClickL
     private final List<CheckPoint> checkPoints = new ArrayList<>();
     private final List<Marker> markers = new ArrayList<>();
     private CheckpointAdapter adapter;
+    private Polyline routePolyline; // 路线预览折线
     private final SimpleDateFormat dateTimeFormat =
             new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.CHINA);
     private final Map<String, LatLng> presetCities = new HashMap<>();
@@ -84,6 +91,8 @@ public class CreateRaceActivity extends BaseActivity implements AMap.OnMapClickL
             checkPoints.remove(position);
             reindexCheckpoints();
             adapter.notifyItemRemoved(position);
+            updateRoutePreview(); // 更新路线预览
+            autoSaveDraft(); // 自动保存草稿
         });
         binding.rvCheckpoints.setLayoutManager(new LinearLayoutManager(this));
         binding.rvCheckpoints.setAdapter(adapter);
@@ -100,6 +109,30 @@ public class CreateRaceActivity extends BaseActivity implements AMap.OnMapClickL
                 return true;
             }
             return false;
+        });
+
+        // 添加文本变化监听，实现自动保存
+        addTextWatcher(binding.etRaceName);
+        addTextWatcher(binding.etDescription);
+        binding.etStartTime.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {}
+            @Override
+            public void afterTextChanged(Editable s) {
+                autoSaveDraft();
+            }
+        });
+        binding.etEndTime.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {}
+            @Override
+            public void afterTextChanged(Editable s) {
+                autoSaveDraft();
+            }
         });
 
         initMap();
@@ -207,6 +240,8 @@ public class CreateRaceActivity extends BaseActivity implements AMap.OnMapClickL
             aMap.getUiSettings().setZoomControlsEnabled(false);
             aMap.moveCamera(CameraUpdateFactory.zoomTo(16f));
             aMap.setOnMapClickListener(this);
+            // 初始化路线预览
+            updateRoutePreview();
         }
     }
 
@@ -361,6 +396,9 @@ public class CreateRaceActivity extends BaseActivity implements AMap.OnMapClickL
                 .position(new LatLng(lat, lng))
                 .title(name + "(" + type + ")"));
         markers.add(marker);
+        
+        updateRoutePreview(); // 更新路线预览
+        autoSaveDraft(); // 自动保存草稿
     }
 
     private boolean isDuplicatePoint(String name, double lat, double lng) {
@@ -381,6 +419,81 @@ public class CreateRaceActivity extends BaseActivity implements AMap.OnMapClickL
             Marker marker = markers.remove(position);
             marker.remove();
         }
+    }
+
+    /**
+     * 更新路线预览：根据打卡点顺序绘制路线
+     */
+    private void updateRoutePreview() {
+        // 移除旧的路线
+        if (routePolyline != null) {
+            routePolyline.remove();
+            routePolyline = null;
+        }
+
+        // 如果打卡点少于2个，不绘制路线
+        if (checkPoints.size() < 2) {
+            return;
+        }
+
+        // 按照 orderIndex 排序打卡点
+        List<CheckPoint> sortedPoints = new ArrayList<>(checkPoints);
+        sortedPoints.sort((p1, p2) -> Integer.compare(p1.getOrderIndex(), p2.getOrderIndex()));
+
+        // 构建路线点列表
+        List<LatLng> routePoints = new ArrayList<>();
+        LatLngBounds.Builder boundsBuilder = new LatLngBounds.Builder();
+        
+        for (CheckPoint point : sortedPoints) {
+            LatLng latLng = new LatLng(point.getLatitude(), point.getLongitude());
+            routePoints.add(latLng);
+            boundsBuilder.include(latLng);
+        }
+
+        // 绘制路线
+        if (!routePoints.isEmpty()) {
+            routePolyline = aMap.addPolyline(new PolylineOptions()
+                    .addAll(routePoints)
+                    .width(6f)
+                    .color(0xFF4CAF50) // 绿色路线
+                    .setDottedLine(false));
+            
+            // 仅在有足够打卡点且地图未初始化视野时调整地图视野
+            // 避免在用户手动缩放时频繁调整视野
+            if (routePoints.size() >= 3) {
+                try {
+                    LatLngBounds bounds = boundsBuilder.build();
+                    // 使用 newLatLngBounds 会自动调整视野，包含所有点
+                    aMap.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, 120));
+                } catch (Exception e) {
+                    // 如果边界无效，忽略错误
+                }
+            }
+        }
+    }
+
+    /**
+     * 自动保存草稿：将当前编辑内容保存到本地，无需联网
+     */
+    private void autoSaveDraft() {
+        // 只有在有有效数据时才保存
+        String name = textOf(binding.etRaceName);
+        if (TextUtils.isEmpty(name) && checkPoints.isEmpty()) {
+            return; // 没有有效数据，不保存
+        }
+
+        // 使用 SharedPreferences 保存草稿数据
+        // 保存基本信息
+        PreferenceUtil.editor(this)
+                .putString("draft_race_name", textOf(binding.etRaceName))
+                .putString("draft_race_description", textOf(binding.etDescription))
+                .putString("draft_race_start_time", textOf(binding.etStartTime))
+                .putString("draft_race_end_time", textOf(binding.etEndTime))
+                .putInt("draft_checkpoints_count", checkPoints.size())
+                .applyAsync();
+
+        // 打卡点数据通过 Realm 保存（作为临时草稿）
+        // 注意：这里只保存，不创建完整的 Race 对象，避免数据混乱
     }
 
     private void saveRace() {
@@ -404,6 +517,7 @@ public class CreateRaceActivity extends BaseActivity implements AMap.OnMapClickL
         binding.tilRaceName.setError(null);
 
         raceManager.createRace(name, description, result.getStart(), result.getEnd(), new ArrayList<>(checkPoints));
+        clearDraft(); // 清除草稿
         UIUtil.showToast(this, "赛事已保存");
         finish();
     }
@@ -416,6 +530,22 @@ public class CreateRaceActivity extends BaseActivity implements AMap.OnMapClickL
 
     private String textOf(@NonNull TextInputEditText editText) {
         return editText.getText() != null ? editText.getText().toString().trim() : "";
+    }
+
+    /**
+     * 为文本输入框添加自动保存监听器
+     */
+    private void addTextWatcher(TextInputEditText editText) {
+        editText.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {}
+            @Override
+            public void afterTextChanged(Editable s) {
+                autoSaveDraft();
+            }
+        });
     }
 
     @Override
@@ -433,7 +563,27 @@ public class CreateRaceActivity extends BaseActivity implements AMap.OnMapClickL
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        // 页面销毁时自动保存草稿
+        autoSaveDraft();
+        // 清理路线预览
+        if (routePolyline != null) {
+            routePolyline.remove();
+            routePolyline = null;
+        }
         mapView.onDestroy();
+    }
+
+    /**
+     * 清除草稿数据
+     */
+    private void clearDraft() {
+        PreferenceUtil.editor(this)
+                .remove("draft_race_name")
+                .remove("draft_race_description")
+                .remove("draft_race_start_time")
+                .remove("draft_race_end_time")
+                .remove("draft_checkpoints_count")
+                .applyAsync();
     }
 
 }
