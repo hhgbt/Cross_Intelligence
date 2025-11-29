@@ -17,6 +17,22 @@
     </com.google.android.material.textfield.TextInputLayout>
 
     <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/tilType"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:hint="类型">
+
+        <AutoCompleteTextView
+            android:id="@+id/actType"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="选择类型：起点/检查点/终点"
+            android:inputType="none"
+            android:focusable="false" />
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <com.google.android.material.textfield.TextInputLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp">
@@ -40,6 +56,20 @@
             android:layout_height="wrap_content"
             android:hint="经度"
             android:inputType="numberDecimal" />
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <com.google.android.material.textfield.TextInputLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/etCheckRadius"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="打卡半径（米，默认50米）"
+            android:inputType="numberDecimal"
+            android:text="50" />
     </com.google.android.material.textfield.TextInputLayout>
 
 </LinearLayout>

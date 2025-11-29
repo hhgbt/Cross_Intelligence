@@ -75,6 +75,9 @@
             android:name="com.example.cross_intelligence.mvc.view.profile.UserSettingsActivity"
             android:exported="false" />
         <activity
+            android:name="com.example.cross_intelligence.mvc.view.admin.AdminMainActivity"
+            android:exported="false" />
+        <activity
             android:name="com.example.cross_intelligence.mvc.view.race.CreateRaceActivity"
             android:exported="false" />
         <activity

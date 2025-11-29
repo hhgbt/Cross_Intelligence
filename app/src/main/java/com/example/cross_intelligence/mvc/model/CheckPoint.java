@@ -15,6 +15,8 @@ public class CheckPoint extends RealmObject {
     private double longitude;
     private String qrCodePayload;
     private int orderIndex;
+    private String type; // START, CHECKPOINT, END
+    private double checkRadius; // 打卡半径（米）
 
     public String getCheckPointId() {
         return checkPointId;
@@ -70,6 +72,22 @@ public class CheckPoint extends RealmObject {
 
     public void setOrderIndex(int orderIndex) {
         this.orderIndex = orderIndex;
+    }
+
+    public String getType() {
+        return type;
+    }
+
+    public void setType(String type) {
+        this.type = type;
+    }
+
+    public double getCheckRadius() {
+        return checkRadius;
+    }
+
+    public void setCheckRadius(double checkRadius) {
+        this.checkRadius = checkRadius;
     }
 }
 

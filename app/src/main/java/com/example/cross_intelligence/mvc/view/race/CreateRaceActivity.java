@@ -7,6 +7,8 @@ import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.inputmethod.EditorInfo;
+import android.widget.ArrayAdapter;
+import android.widget.AutoCompleteTextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -43,6 +45,10 @@ public class CreateRaceActivity extends BaseActivity implements AMap.OnMapClickL
 
     private static final int MAX_CHECKPOINTS = 40;
     private static final double DUPLICATE_THRESHOLD = 0.00005;
+    private static final String TYPE_START = "起点";
+    private static final String TYPE_CHECKPOINT = "检查点";
+    private static final String TYPE_END = "终点";
+    private static final double DEFAULT_CHECK_RADIUS = 50.0; // 默认打卡半径50米
 
     private ActivityCreateRaceBinding binding;
     private MapView mapView;
@@ -217,6 +223,25 @@ public class CreateRaceActivity extends BaseActivity implements AMap.OnMapClickL
             dialogBinding.etLatitude.setText(String.valueOf(latLng.latitude));
             dialogBinding.etLongitude.setText(String.valueOf(latLng.longitude));
         }
+        
+        // 设置打卡点类型下拉选择
+        ArrayAdapter<String> typeAdapter = new ArrayAdapter<>(this, 
+                android.R.layout.simple_dropdown_item_1line,
+                new String[]{TYPE_START, TYPE_CHECKPOINT, TYPE_END});
+        dialogBinding.actType.setAdapter(typeAdapter);
+        dialogBinding.actType.setOnClickListener(v -> dialogBinding.actType.showDropDown());
+        dialogBinding.actType.setOnFocusChangeListener((v, hasFocus) -> {
+            if (hasFocus) {
+                dialogBinding.actType.showDropDown();
+            }
+        });
+        // 如果没有打卡点，默认为起点；否则默认为检查点
+        if (checkPoints.isEmpty()) {
+            dialogBinding.actType.setText(TYPE_START, false);
+        } else {
+            dialogBinding.actType.setText(TYPE_CHECKPOINT, false);
+        }
+        
         new AlertDialog.Builder(this)
                 .setTitle("新增打卡点")
                 .setView(dialogBinding.getRoot())
@@ -224,14 +249,34 @@ public class CreateRaceActivity extends BaseActivity implements AMap.OnMapClickL
                     String name = dialogBinding.etName.getText() != null ? dialogBinding.etName.getText().toString().trim() : "";
                     String latStr = dialogBinding.etLatitude.getText() != null ? dialogBinding.etLatitude.getText().toString().trim() : "";
                     String lngStr = dialogBinding.etLongitude.getText() != null ? dialogBinding.etLongitude.getText().toString().trim() : "";
+                    String type = dialogBinding.actType.getText() != null ? dialogBinding.actType.getText().toString().trim() : TYPE_CHECKPOINT;
+                    String radiusStr = dialogBinding.etCheckRadius.getText() != null ? dialogBinding.etCheckRadius.getText().toString().trim() : "";
+                    
                     if (TextUtils.isEmpty(name)) {
                         UIUtil.showToast(this, "请输入打卡点名称");
                         return;
                     }
+                    if (TextUtils.isEmpty(type) || (!TYPE_START.equals(type) && !TYPE_CHECKPOINT.equals(type) && !TYPE_END.equals(type))) {
+                        UIUtil.showToast(this, "请选择打卡点类型");
+                        return;
+                    }
+                    double radius = DEFAULT_CHECK_RADIUS;
+                    if (!TextUtils.isEmpty(radiusStr)) {
+                        try {
+                            radius = Double.parseDouble(radiusStr);
+                            if (radius <= 0) {
+                                UIUtil.showToast(this, "打卡半径必须大于0");
+                                return;
+                            }
+                        } catch (NumberFormatException e) {
+                            UIUtil.showToast(this, "打卡半径格式错误，使用默认值50米");
+                            radius = DEFAULT_CHECK_RADIUS;
+                        }
+                    }
                     try {
                         double lat = Double.parseDouble(latStr);
                         double lng = Double.parseDouble(lngStr);
-                        addCheckpoint(name, lat, lng);
+                        addCheckpoint(name, lat, lng, type, radius);
                     } catch (NumberFormatException e) {
                         UIUtil.showToast(this, "坐标格式错误");
                     }
@@ -241,6 +286,11 @@ public class CreateRaceActivity extends BaseActivity implements AMap.OnMapClickL
     }
 
     private void addCheckpoint(String name, double lat, double lng) {
+        // 保持向后兼容，默认使用检查点类型和默认半径
+        addCheckpoint(name, lat, lng, TYPE_CHECKPOINT, DEFAULT_CHECK_RADIUS);
+    }
+
+    private void addCheckpoint(String name, double lat, double lng, String type, double radius) {
         if (checkPoints.size() >= MAX_CHECKPOINTS) {
             UIUtil.showToast(this, "打卡点数量已达上限");
             return;
@@ -249,18 +299,67 @@ public class CreateRaceActivity extends BaseActivity implements AMap.OnMapClickL
             UIUtil.showToast(this, "存在同名或坐标过近的打卡点");
             return;
         }
+        
+        // 检查是否已存在起点或终点
+        if (TYPE_START.equals(type)) {
+            for (CheckPoint point : checkPoints) {
+                if (TYPE_START.equals(point.getType())) {
+                    UIUtil.showToast(this, "已存在起点，请先删除后再添加");
+                    return;
+                }
+            }
+        }
+        if (TYPE_END.equals(type)) {
+            for (CheckPoint point : checkPoints) {
+                if (TYPE_END.equals(point.getType())) {
+                    UIUtil.showToast(this, "已存在终点，请先删除后再添加");
+                    return;
+                }
+            }
+        }
+        
         CheckPoint point = new CheckPoint();
         point.setCheckPointId(UUID.randomUUID().toString());
         point.setName(name);
         point.setLatitude(lat);
         point.setLongitude(lng);
-        point.setOrderIndex(checkPoints.size() + 1);
-        checkPoints.add(point);
-        adapter.notifyItemInserted(checkPoints.size() - 1);
+        point.setType(type);
+        point.setCheckRadius(radius);
+        
+        // 起点设置为1，终点设置为最后，检查点按添加顺序插入到终点之前
+        if (TYPE_START.equals(type)) {
+            point.setOrderIndex(1);
+            // 将其他点的顺序后移
+            for (CheckPoint p : checkPoints) {
+                p.setOrderIndex(p.getOrderIndex() + 1);
+            }
+            checkPoints.add(0, point);
+            adapter.notifyItemInserted(0);
+        } else if (TYPE_END.equals(type)) {
+            point.setOrderIndex(checkPoints.size() + 1);
+            checkPoints.add(point);
+            adapter.notifyItemInserted(checkPoints.size() - 1);
+        } else {
+            // 检查点：计算合适的顺序（在起点之后，终点之前）
+            int insertIndex = checkPoints.size();
+            for (int i = 0; i < checkPoints.size(); i++) {
+                if (TYPE_END.equals(checkPoints.get(i).getType())) {
+                    insertIndex = i;
+                    // 将终点及之后的所有点的顺序后移
+                    for (int j = i; j < checkPoints.size(); j++) {
+                        checkPoints.get(j).setOrderIndex(checkPoints.get(j).getOrderIndex() + 1);
+                    }
+                    break;
+                }
+            }
+            point.setOrderIndex(insertIndex + 1);
+            checkPoints.add(insertIndex, point);
+            adapter.notifyItemInserted(insertIndex);
+        }
 
         Marker marker = aMap.addMarker(new MarkerOptions()
                 .position(new LatLng(lat, lng))
-                .title(name));
+                .title(name + "(" + type + ")"));
         markers.add(marker);
     }
 
@@ -286,6 +385,7 @@ public class CreateRaceActivity extends BaseActivity implements AMap.OnMapClickL
 
     private void saveRace() {
         String name = textOf(binding.etRaceName);
+        String description = textOf(binding.etDescription);
         String start = textOf(binding.etStartTime);
         String end = textOf(binding.etEndTime);
 
@@ -303,7 +403,7 @@ public class CreateRaceActivity extends BaseActivity implements AMap.OnMapClickL
         }
         binding.tilRaceName.setError(null);
 
-        raceManager.createRace(name, result.getStart(), result.getEnd(), new ArrayList<>(checkPoints));
+        raceManager.createRace(name, description, result.getStart(), result.getEnd(), new ArrayList<>(checkPoints));
         UIUtil.showToast(this, "赛事已保存");
         finish();
     }
@@ -337,4 +437,5 @@ public class CreateRaceActivity extends BaseActivity implements AMap.OnMapClickL
     }
 
 }
+
 

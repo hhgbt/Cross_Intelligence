@@ -23,10 +23,15 @@ public class RaceManager {
     }
 
     public void createRace(String name, Date start, Date end, List<CheckPoint> points) {
+        createRace(name, null, start, end, points);
+    }
+
+    public void createRace(String name, String description, Date start, Date end, List<CheckPoint> points) {
         Realm realm = Realm.getDefaultInstance();
         realm.executeTransaction(r -> {
             Race race = r.createObject(Race.class, UUID.randomUUID().toString());
             race.setName(name);
+            race.setDescription(description != null ? description : "");
             race.setStartTime(start);
             race.setEndTime(end);
             RealmList<CheckPoint> realmPoints = new RealmList<>();

@@ -16,9 +16,9 @@ import com.example.cross_intelligence.mvc.controller.UserManager;
 import com.example.cross_intelligence.mvc.model.User;
 import com.example.cross_intelligence.mvc.util.PreferenceUtil;
 import com.example.cross_intelligence.mvc.util.UIUtil;
+import com.example.cross_intelligence.mvc.view.admin.AdminMainActivity;
 import com.example.cross_intelligence.mvc.view.checkin.CheckInActivity;
 import com.example.cross_intelligence.mvc.view.profile.UserSettingsActivity;
-import com.example.cross_intelligence.mvc.view.race.CreateRaceActivity;
 
 import java.util.Arrays;
 import java.util.List;
@@ -120,7 +120,7 @@ public class LoginActivity extends BaseActivity {
                     // 根据角色跳转到不同的主页
                     Class<?> target;
                     if ("管理员".equals(role)) {
-                        target = CreateRaceActivity.class;
+                        target = AdminMainActivity.class;
                     } else if ("选手".equals(role)) {
                         target = CheckInActivity.class;
                     } else {

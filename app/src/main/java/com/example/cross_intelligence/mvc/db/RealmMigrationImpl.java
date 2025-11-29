@@ -12,7 +12,8 @@ public class RealmMigrationImpl implements RealmMigration {
         RealmSchema schema = realm.getSchema();
 
         while (oldVersion < newVersion) {
-            switch ((int) oldVersion) {
+            int currentVersion = (int) oldVersion;
+            switch (currentVersion) {
                 case 0: {
                     if (schema.contains("Result")) {
                         RealmObjectSchema resultSchema = schema.get("Result");
@@ -30,6 +31,41 @@ public class RealmMigrationImpl implements RealmMigration {
                         if (recordSchema != null && !recordSchema.hasField("lastSyncedAt")) {
                             recordSchema.addField("lastSyncedAt", long.class, FieldAttribute.REQUIRED)
                                     .transform(obj -> obj.setLong("lastSyncedAt", 0));
+                        }
+                    }
+                    oldVersion++;
+                    break;
+                }
+                case 2: {
+                    // 版本2到3：无需额外操作，如果有的话
+                    oldVersion++;
+                    break;
+                }
+                case 3: {
+                    // 版本3到4：为 CheckPoint 添加 type 和 checkRadius 字段
+                    RealmObjectSchema checkpointSchema = schema.get("CheckPoint");
+                    if (checkpointSchema != null) {
+                        // 添加 type 字段，默认值为 "检查点"
+                        if (!checkpointSchema.hasField("type")) {
+                            checkpointSchema.addField("type", String.class);
+                            // 为所有现有记录设置默认值
+                            checkpointSchema.transform(obj -> {
+                                String existingType = obj.getString("type");
+                                if (existingType == null || existingType.isEmpty()) {
+                                    obj.setString("type", "检查点");
+                                }
+                            });
+                        }
+                        // 添加 checkRadius 字段，默认值为 50.0
+                        if (!checkpointSchema.hasField("checkRadius")) {
+                            checkpointSchema.addField("checkRadius", double.class);
+                            // 为所有现有记录设置默认值
+                            checkpointSchema.transform(obj -> {
+                                double existingRadius = obj.getDouble("checkRadius");
+                                if (existingRadius == 0.0) {
+                                    obj.setDouble("checkRadius", 50.0);
+                                }
+                            });
                         }
                     }
                     oldVersion++;
