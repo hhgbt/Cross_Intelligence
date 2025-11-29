@@ -13,3 +13,8 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Keystore files - 不要提交到 Git
+*.jks
+*.keystore
+keystore.properties
