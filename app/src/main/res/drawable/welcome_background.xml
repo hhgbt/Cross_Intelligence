@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 
+    这是一个占位背景，你可以用你自己的图片替换它。
+    替换方法：
+    1. 将你的图片文件（如 welcome_bg.jpg 或 welcome_bg.png）放到 app/src/main/res/drawable/ 目录下
+    2. 将文件名改为 welcome_background.jpg 或 welcome_background.png
+    3. 删除这个 XML 文件，系统会自动使用图片文件
+    或者：
+    1. 将图片放到 app/src/main/res/drawable/ 目录下，命名为 welcome_bg.jpg
+    2. 修改 activity_welcome.xml 中的 android:src="@drawable/welcome_background" 
+       改为 android:src="@drawable/welcome_bg"
+-->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <gradient
+        android:angle="135"
+        android:startColor="#6200EE"
+        android:centerColor="#3700B3"
+        android:endColor="#000000"
+        android:type="linear" />
+</shape>
+
+
+

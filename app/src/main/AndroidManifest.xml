@@ -1,27 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools">
-
-    <application
-        android:allowBackup="true"
-        android:dataExtractionRules="@xml/data_extraction_rules"
-        android:fullBackupContent="@xml/backup_rules"
-        android:icon="@mipmap/ic_launcher"
-        android:label="@string/app_name"
-        android:roundIcon="@mipmap/ic_launcher_round"
-        android:supportsRtl="true"
-        android:theme="@style/Theme.Cross_Intelligence" >
-
-        <meta-data
-            android:name="com.amap.api.v2.apikey"
-            android:value="e644fb03ebcda3b1fad9c724b3d0253e">
-        </meta-data>
-
-        <service
-            android:name="com.amap.api.location.APSService">
-        </service>
-
-    </application>
+    xmlns:tools="http://schemas.android.com/tools"
+    package="com.example.cross_intelligence">
 
     <!--允许访问网络，必选权限-->
     <uses-permission android:name="android.permission.INTERNET" />
@@ -41,13 +21,92 @@
     <!--允许获取wifi状态改变，用于网络定位（无gps情况下的定位），若需网络定位功能则必选-->
     <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
 
-    <!--后台获取位置信息，若需后台定位则必选-->
-    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+    <!-- 如需扫码功能，添加相机权限（运行时请求） -->
+    <uses-permission android:name="android.permission.CAMERA" />
+
+    <!-- 相机硬件声明 -->
+    <uses-feature
+        android:name="android.hardware.camera"
+        android:required="false" />
+
+    <uses-feature
+        android:name="android.hardware.camera.autofocus"
+        android:required="false" />
 
     <!--用于申请调用A-GPS模块,卫星定位加速-->
     <uses-permission android:name="android.permission.ACCESS_LOCATION_EXTRA_COMMANDS" />
 
     <!--允许写设备缓存，用于问题排查-->
     <uses-permission android:name="android.permission.WRITE_SETTINGS" />
+
+    <application
+        android:name=".CrossIntelligenceApp"
+        android:allowBackup="true"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="@xml/backup_rules"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Cross_Intelligence" >
+
+        <!-- Launcher / Welcome Activity（启动页） -->
+        <activity
+            android:name="com.example.cross_intelligence.mvc.view.welcome.WelcomeActivity"
+            android:exported="true"
+            android:theme="@style/Theme.Cross_Intelligence">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Login Activity -->
+        <activity
+            android:name="com.example.cross_intelligence.mvc.view.login.LoginActivity"
+            android:exported="false" />
+
+        <!-- Register Activity -->
+        <activity
+            android:name="com.example.cross_intelligence.mvc.view.register.RegisterActivity"
+            android:exported="false" />
+
+        <activity
+            android:name="com.example.cross_intelligence.mvc.view.profile.UserSettingsActivity"
+            android:exported="false" />
+        <activity
+            android:name="com.example.cross_intelligence.mvc.view.race.CreateRaceActivity"
+            android:exported="false" />
+        <activity
+            android:name="com.example.cross_intelligence.mvc.view.checkin.CheckInActivity"
+            android:exported="false" />
+        <activity
+            android:name="com.example.cross_intelligence.mvc.view.result.ResultDetailActivity"
+            android:exported="false" />
+        <activity
+            android:name="com.example.cross_intelligence.mvc.view.result.LeaderboardActivity"
+            android:exported="false" />
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
+        <meta-data
+            android:name="com.amap.api.v2.apikey"
+            android:value="e644fb03ebcda3b1fad9c724b3d0253e">
+        </meta-data>
+
+        <service
+            android:name="com.amap.api.location.APSService"
+            android:exported="false">
+        </service>
+
+    </application>
 
 </manifest>
