@@ -14,11 +14,9 @@ final class LoginFormValidator {
         if (TextUtils.isEmpty(account)) {
             return "请输入账号";
         }
-        if ("管理员".equals(role) && !account.startsWith("admin")) {
-            return "管理员账号需以 admin 开头";
-        }
-        if ("选手".equals(role) && !account.matches("\\d{6,}")) {
-            return "选手账号需为学号（至少6位数字）";
+        // 账号格式验证：允许数字、大小写字母、下划线
+        if (!account.matches("^[a-zA-Z0-9_]+$")) {
+            return "账号只能包含数字、字母和下划线";
         }
         return null;
     }
@@ -45,6 +43,7 @@ final class LoginFormValidator {
         return null;
     }
 }
+
 
 
 

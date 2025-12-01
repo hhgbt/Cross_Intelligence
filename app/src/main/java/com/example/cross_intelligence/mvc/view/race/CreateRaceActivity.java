@@ -2,6 +2,7 @@ package com.example.cross_intelligence.mvc.view.race;
 
 import android.annotation.SuppressLint;
 import android.app.AlertDialog;
+import android.content.Intent;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextUtils;
@@ -30,8 +31,10 @@ import com.example.cross_intelligence.databinding.DialogCheckpointBinding;
 import com.example.cross_intelligence.mvc.base.BaseActivity;
 import com.example.cross_intelligence.mvc.controller.RaceManager;
 import com.example.cross_intelligence.mvc.model.CheckPoint;
+import com.example.cross_intelligence.mvc.model.Race;
 import com.example.cross_intelligence.mvc.util.PreferenceUtil;
 import com.example.cross_intelligence.mvc.util.UIUtil;
+import com.example.cross_intelligence.mvc.view.admin.AdminMainActivity;
 import com.google.android.material.textfield.TextInputEditText;
 
 import java.text.SimpleDateFormat;
@@ -67,6 +70,7 @@ public class CreateRaceActivity extends BaseActivity implements AMap.OnMapClickL
     private final SimpleDateFormat dateTimeFormat =
             new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.CHINA);
     private final Map<String, LatLng> presetCities = new HashMap<>();
+    private String editingRaceId; // 编辑模式下的赛事ID，为 null 表示创建模式
     @Override
     protected int getLayoutId() {
         return 0;
@@ -79,6 +83,10 @@ public class CreateRaceActivity extends BaseActivity implements AMap.OnMapClickL
         setContentView(binding.getRoot());
         mapView = binding.mapView;
         mapView.onCreate(savedInstanceState);
+        
+        // 检查是否为编辑模式
+        editingRaceId = getIntent().getStringExtra("raceId");
+        
         initView();
         initData();
     }
@@ -99,6 +107,14 @@ public class CreateRaceActivity extends BaseActivity implements AMap.OnMapClickL
 
         binding.btnAddManual.setOnClickListener(v -> showCheckpointDialog(null));
         binding.btnSaveRace.setOnClickListener(v -> saveRace());
+        
+        // 根据模式设置按钮文本和标题
+        if (editingRaceId != null) {
+            binding.btnSaveRace.setText("保存修改");
+            if (getSupportActionBar() != null) {
+                getSupportActionBar().setTitle("编辑赛事");
+            }
+        }
 
         binding.etStartTime.setOnClickListener(v -> pickDateTime(binding.etStartTime));
         binding.etEndTime.setOnClickListener(v -> pickDateTime(binding.etEndTime));
@@ -176,12 +192,17 @@ public class CreateRaceActivity extends BaseActivity implements AMap.OnMapClickL
 
     @Override
     protected void initData() {
-        // 预填充一个示例时间，方便直接调整
-        Calendar calendar = Calendar.getInstance();
-        calendar.set(2025, Calendar.JANUARY, 1, 9, 0);
-        binding.etStartTime.setText(dateTimeFormat.format(calendar.getTime()));
-        calendar.set(2025, Calendar.JANUARY, 1, 11, 0);
-        binding.etEndTime.setText(dateTimeFormat.format(calendar.getTime()));
+        // 如果是编辑模式，加载现有赛事数据
+        if (editingRaceId != null) {
+            loadRaceData(editingRaceId);
+        } else {
+            // 创建模式：预填充一个示例时间，方便直接调整
+            Calendar calendar = Calendar.getInstance();
+            calendar.set(2025, Calendar.JANUARY, 1, 9, 0);
+            binding.etStartTime.setText(dateTimeFormat.format(calendar.getTime()));
+            calendar.set(2025, Calendar.JANUARY, 1, 11, 0);
+            binding.etEndTime.setText(dateTimeFormat.format(calendar.getTime()));
+        }
 
         // 初始化常用城市中心点，用于快速跳转
         presetCities.clear();
@@ -195,6 +216,57 @@ public class CreateRaceActivity extends BaseActivity implements AMap.OnMapClickL
         presetCities.put("guangzhou", new LatLng(23.1291, 113.2644));
         presetCities.put("深圳", new LatLng(22.5431, 114.0579));
         presetCities.put("shenzhen", new LatLng(22.5431, 114.0579));
+    }
+
+    /**
+     * 加载赛事数据用于编辑
+     */
+    private void loadRaceData(String raceId) {
+        Race race = raceManager.getRaceById(raceId);
+        if (race == null) {
+            UIUtil.showToast(this, "赛事不存在");
+            finish();
+            return;
+        }
+
+        // 填充基本信息
+        binding.etRaceName.setText(race.getName());
+        if (race.getDescription() != null) {
+            binding.etDescription.setText(race.getDescription());
+        }
+        if (race.getStartTime() != null) {
+            binding.etStartTime.setText(dateTimeFormat.format(race.getStartTime()));
+        }
+        if (race.getEndTime() != null) {
+            binding.etEndTime.setText(dateTimeFormat.format(race.getEndTime()));
+        }
+
+        // 加载打卡点
+        if (race.getCheckPoints() != null && !race.getCheckPoints().isEmpty()) {
+            checkPoints.clear();
+            if (markers != null) {
+                markers.clear();
+            }
+            
+            // 复制打卡点到列表中
+            for (CheckPoint point : race.getCheckPoints()) {
+                CheckPoint copy = new CheckPoint();
+                copy.setCheckPointId(point.getCheckPointId());
+                copy.setName(point.getName());
+                copy.setLatitude(point.getLatitude());
+                copy.setLongitude(point.getLongitude());
+                copy.setType(point.getType());
+                copy.setCheckRadius(point.getCheckRadius());
+                copy.setOrderIndex(point.getOrderIndex());
+                checkPoints.add(copy);
+            }
+            
+            // 按顺序排序
+            checkPoints.sort((p1, p2) -> Integer.compare(p1.getOrderIndex(), p2.getOrderIndex()));
+            adapter.notifyDataSetChanged();
+            
+            // 地图标记将在 initMap() 中绘制
+        }
     }
 
     private void pickDateTime(TextInputEditText target) {
@@ -240,8 +312,21 @@ public class CreateRaceActivity extends BaseActivity implements AMap.OnMapClickL
             aMap.getUiSettings().setZoomControlsEnabled(false);
             aMap.moveCamera(CameraUpdateFactory.zoomTo(16f));
             aMap.setOnMapClickListener(this);
-            // 初始化路线预览
-            updateRoutePreview();
+            
+            // 如果是编辑模式，地图初始化后需要重新加载打卡点（因为地图可能还未准备好）
+            if (editingRaceId != null && !checkPoints.isEmpty()) {
+                // 地图已初始化，重新绘制标记和路线
+                for (CheckPoint point : checkPoints) {
+                    Marker marker = aMap.addMarker(new MarkerOptions()
+                            .position(new LatLng(point.getLatitude(), point.getLongitude()))
+                            .title(point.getName() + (point.getType() != null ? "(" + point.getType() + ")" : "")));
+                    markers.add(marker);
+                }
+                updateRoutePreview();
+            } else {
+                // 初始化路线预览
+                updateRoutePreview();
+            }
         }
     }
 
@@ -516,10 +601,76 @@ public class CreateRaceActivity extends BaseActivity implements AMap.OnMapClickL
         }
         binding.tilRaceName.setError(null);
 
-        raceManager.createRace(name, description, result.getStart(), result.getEnd(), new ArrayList<>(checkPoints));
-        clearDraft(); // 清除草稿
-        UIUtil.showToast(this, "赛事已保存");
-        finish();
+        // 获取当前登录的管理员账号
+        String organizerId = PreferenceUtil.getString(this, "account", "");
+        if (TextUtils.isEmpty(organizerId)) {
+            UIUtil.showToast(this, "无法获取管理员账号信息，请重新登录");
+            return;
+        }
+        
+        // 显示保存中的提示
+        UIUtil.showToast(this, "正在保存...");
+        
+        // 保存或更新赛事（使用异步回调）
+        RaceManager.SaveCallback callback = new RaceManager.SaveCallback() {
+            @Override
+            public void onSuccess() {
+                // 在主线程更新UI
+                runOnUiThread(() -> {
+                    clearDraft(); // 清除草稿
+                    
+                    // 显示成功弹窗
+                    String message = editingRaceId != null ? "赛事更新成功！" : "赛事保存成功！";
+                    new AlertDialog.Builder(CreateRaceActivity.this)
+                            .setTitle("保存成功")
+                            .setMessage(message)
+                            .setPositiveButton("确定", (dialog, which) -> {
+                                // 返回管理员主页
+                                Intent intent = new Intent(CreateRaceActivity.this, AdminMainActivity.class);
+                                intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+                                startActivity(intent);
+                                finish();
+                            })
+                            .setCancelable(false)
+                            .show();
+                });
+            }
+
+            @Override
+            public void onError(@NonNull Throwable error) {
+                // 在主线程显示错误信息
+                runOnUiThread(() -> {
+                    error.printStackTrace();
+                    String errorMsg = error.getMessage();
+                    if (errorMsg == null || errorMsg.isEmpty()) {
+                        errorMsg = error.getClass().getSimpleName();
+                    }
+                    UIUtil.showToast(CreateRaceActivity.this, "保存失败：" + errorMsg);
+                });
+            }
+        };
+
+        // 提取 CheckPoint 数据（在 UI 线程提取所有属性，避免传递 Realm 对象引用）
+        List<RaceManager.CheckPointData> checkpointDataList = new ArrayList<>();
+        for (CheckPoint point : checkPoints) {
+            RaceManager.CheckPointData data = new RaceManager.CheckPointData();
+            data.checkPointId = point.getCheckPointId();
+            data.name = point.getName();
+            data.latitude = point.getLatitude();
+            data.longitude = point.getLongitude();
+            data.type = point.getType();
+            data.checkRadius = point.getCheckRadius();
+            data.orderIndex = point.getOrderIndex();
+            checkpointDataList.add(data);
+        }
+        
+        if (editingRaceId != null) {
+            // 编辑模式：更新现有赛事
+            raceManager.updateRace(editingRaceId, name, description, result.getStart(), result.getEnd(), checkpointDataList, callback);
+        } else {
+            // 创建模式：创建新赛事
+            raceManager.createRace(name, description, result.getStart(), result.getEnd(), checkpointDataList, organizerId, callback);
+        }
     }
 
     private void reindexCheckpoints() {

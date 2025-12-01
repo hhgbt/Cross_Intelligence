@@ -7,6 +7,7 @@ import com.example.cross_intelligence.databinding.ActivityAdminMainBinding;
 import com.example.cross_intelligence.mvc.base.BaseActivity;
 import com.example.cross_intelligence.mvc.util.UIUtil;
 import com.example.cross_intelligence.mvc.view.race.CreateRaceActivity;
+import com.example.cross_intelligence.mvc.view.admin.RaceListActivity;
 
 /**
  * 管理员主页：提供管理员常用功能入口
@@ -39,8 +40,8 @@ public class AdminMainActivity extends BaseActivity {
 
         // 查看赛事按钮
         binding.cardViewRaces.setOnClickListener(v -> {
-            // TODO: 后续实现查看赛事功能
-            UIUtil.showToast(this, "查看赛事功能开发中，敬请期待");
+            Intent intent = new Intent(AdminMainActivity.this, RaceListActivity.class);
+            startActivity(intent);
         });
 
         // 选手排名按钮

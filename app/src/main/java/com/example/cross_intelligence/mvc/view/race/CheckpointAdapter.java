@@ -38,18 +38,27 @@ class CheckpointAdapter extends RecyclerView.Adapter<CheckpointAdapter.Checkpoin
     @Override
     public void onBindViewHolder(@NonNull CheckpointViewHolder holder, int position) {
         CheckPoint item = data.get(position);
+        String nameText = item.getName();
+        if (item.getType() != null && !item.getType().isEmpty()) {
+            nameText = nameText + "(" + item.getType() + ")";
+        }
         holder.tvName.setText(holder.itemView.getContext().getString(
-                R.string.checkpoint_name_format, item.getOrderIndex(), item.getName()));
+                R.string.checkpoint_name_format, item.getOrderIndex(), nameText));
         holder.tvCoord.setText(holder.itemView.getContext().getString(
                 R.string.checkpoint_coord_format, item.getLatitude(), item.getLongitude()));
-        holder.btnDelete.setOnClickListener(v -> {
-            if (deleteListener != null) {
+        
+        // 如果 deleteListener 为 null，表示只读模式，隐藏删除按钮
+        if (deleteListener == null) {
+            holder.btnDelete.setVisibility(View.GONE);
+        } else {
+            holder.btnDelete.setVisibility(View.VISIBLE);
+            holder.btnDelete.setOnClickListener(v -> {
                 int adapterPosition = holder.getBindingAdapterPosition();
                 if (adapterPosition != RecyclerView.NO_POSITION) {
                     deleteListener.onDelete(adapterPosition);
                 }
-            }
-        });
+            });
+        }
     }
 
     @Override

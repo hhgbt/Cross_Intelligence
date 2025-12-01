@@ -78,7 +78,16 @@
             android:name="com.example.cross_intelligence.mvc.view.admin.AdminMainActivity"
             android:exported="false" />
         <activity
+            android:name="com.example.cross_intelligence.mvc.view.player.PlayerMainActivity"
+            android:exported="false" />
+        <activity
             android:name="com.example.cross_intelligence.mvc.view.race.CreateRaceActivity"
+            android:exported="false" />
+        <activity
+            android:name="com.example.cross_intelligence.mvc.view.admin.RaceListActivity"
+            android:exported="false" />
+        <activity
+            android:name="com.example.cross_intelligence.mvc.view.race.RaceDetailActivity"
             android:exported="false" />
         <activity
             android:name="com.example.cross_intelligence.mvc.view.checkin.CheckInActivity"

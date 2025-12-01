@@ -23,7 +23,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginTop="24dp"
-        android:text="管理员主页"
+        android:text="选手主页"
         android:textAppearance="?attr/textAppearanceHeadline5"
         android:textStyle="bold"
         app:layout_constraintEnd_toEndOf="parent"
@@ -43,7 +43,7 @@
         app:layout_constraintTop_toBottomOf="@id/tvTitle" />
 
     <com.google.android.material.card.MaterialCardView
-        android:id="@+id/cardCreateRace"
+        android:id="@+id/cardRegisterRace"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginTop="48dp"
@@ -61,7 +61,7 @@
             android:gravity="center_vertical">
 
             <ImageView
-                android:id="@+id/ivCreateRace"
+                android:id="@+id/ivRegisterRace"
                 android:layout_width="48dp"
                 android:layout_height="48dp"
                 android:src="@android:drawable/ic_menu_add"
@@ -75,10 +75,10 @@
                 android:orientation="vertical">
 
                 <TextView
-                    android:id="@+id/tvCreateRace"
+                    android:id="@+id/tvRegisterRace"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="创建赛事"
+                    android:text="报名赛事"
                     android:textAppearance="?attr/textAppearanceHeadline6"
                     android:textStyle="bold" />
 
@@ -86,7 +86,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
-                    android:text="创建新的定向赛赛事"
+                    android:text="浏览并报名可参加的赛事"
                     android:textSize="14sp"
                     android:textColor="@android:color/darker_gray" />
             </LinearLayout>
@@ -100,7 +100,7 @@
     </com.google.android.material.card.MaterialCardView>
 
     <com.google.android.material.card.MaterialCardView
-        android:id="@+id/cardViewRaces"
+        android:id="@+id/cardMyRaces"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
@@ -108,7 +108,7 @@
         app:cardElevation="4dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/cardCreateRace">
+        app:layout_constraintTop_toBottomOf="@id/cardRegisterRace">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -118,10 +118,10 @@
             android:gravity="center_vertical">
 
             <ImageView
-                android:id="@+id/ivViewRaces"
+                android:id="@+id/ivMyRaces"
                 android:layout_width="48dp"
                 android:layout_height="48dp"
-                android:src="@android:drawable/ic_menu_agenda"
+                android:src="@android:drawable/ic_menu_mapmode"
                 app:tint="?attr/colorPrimary" />
 
             <LinearLayout
@@ -132,10 +132,10 @@
                 android:orientation="vertical">
 
                 <TextView
-                    android:id="@+id/tvViewRaces"
+                    android:id="@+id/tvMyRaces"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="查看赛事"
+                    android:text="我的赛事"
                     android:textAppearance="?attr/textAppearanceHeadline6"
                     android:textStyle="bold" />
 
@@ -143,7 +143,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
-                    android:text="查看和管理已创建的赛事"
+                    android:text="查看已报名赛事并进行打卡"
                     android:textSize="14sp"
                     android:textColor="@android:color/darker_gray" />
             </LinearLayout>
@@ -157,7 +157,7 @@
     </com.google.android.material.card.MaterialCardView>
 
     <com.google.android.material.card.MaterialCardView
-        android:id="@+id/cardPlayerRanking"
+        android:id="@+id/cardMyResults"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
@@ -165,7 +165,7 @@
         app:cardElevation="4dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/cardViewRaces">
+        app:layout_constraintTop_toBottomOf="@id/cardMyRaces">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -175,7 +175,7 @@
             android:gravity="center_vertical">
 
             <ImageView
-                android:id="@+id/ivPlayerRanking"
+                android:id="@+id/ivMyResults"
                 android:layout_width="48dp"
                 android:layout_height="48dp"
                 android:src="@android:drawable/star_on"
@@ -189,10 +189,10 @@
                 android:orientation="vertical">
 
                 <TextView
-                    android:id="@+id/tvPlayerRanking"
+                    android:id="@+id/tvMyResults"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="选手排名"
+                    android:text="我的成绩"
                     android:textAppearance="?attr/textAppearanceHeadline6"
                     android:textStyle="bold" />
 
@@ -200,7 +200,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
-                    android:text="查看选手排名和成绩统计"
+                    android:text="查看比赛成绩和排名"
                     android:textSize="14sp"
                     android:textColor="@android:color/darker_gray" />
             </LinearLayout>

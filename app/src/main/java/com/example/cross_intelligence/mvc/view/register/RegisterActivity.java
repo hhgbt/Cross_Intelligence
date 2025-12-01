@@ -65,8 +65,12 @@ public class RegisterActivity extends BaseActivity {
                 ? binding.actRegisterRole.getText().toString().trim() : "";
 
         boolean valid = true;
+        // 账号格式验证
         if (TextUtils.isEmpty(account)) {
             binding.tilRegisterAccount.setError(getString(R.string.register_invalid_input));
+            valid = false;
+        } else if (!account.matches("^[a-zA-Z0-9_]+$")) {
+            binding.tilRegisterAccount.setError("账号只能包含数字、字母和下划线");
             valid = false;
         } else {
             binding.tilRegisterAccount.setError(null);
@@ -121,6 +125,7 @@ public class RegisterActivity extends BaseActivity {
         binding.tilRegisterRole.setError(null);
     }
 }
+
 
 
 

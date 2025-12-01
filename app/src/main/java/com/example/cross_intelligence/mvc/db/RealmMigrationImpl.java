@@ -71,6 +71,31 @@ public class RealmMigrationImpl implements RealmMigration {
                     oldVersion++;
                     break;
                 }
+                case 4: {
+                    // 版本4到5：为 Race 添加 createTime 和 sequenceNumber 字段
+                    RealmObjectSchema raceSchema = schema.get("Race");
+                    if (raceSchema != null) {
+                        // 添加 createTime 字段
+                        if (!raceSchema.hasField("createTime")) {
+                            raceSchema.addField("createTime", java.util.Date.class)
+                                    .transform(obj -> {
+                                        // 如果 createTime 为 null，使用 startTime 作为默认值
+                                        java.util.Date startTime = obj.getDate("startTime");
+                                        obj.setDate("createTime", startTime != null ? startTime : new java.util.Date());
+                                    });
+                        }
+                        // 添加 sequenceNumber 字段，默认值为 0
+                        if (!raceSchema.hasField("sequenceNumber")) {
+                            raceSchema.addField("sequenceNumber", int.class)
+                                    .transform(obj -> {
+                                        // 默认设置为0，后续需要通过代码重新计算
+                                        obj.setInt("sequenceNumber", 0);
+                                    });
+                        }
+                    }
+                    oldVersion++;
+                    break;
+                }
                 default:
                     oldVersion = newVersion;
                     break;

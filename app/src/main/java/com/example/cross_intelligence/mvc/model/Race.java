@@ -18,6 +18,8 @@ public class Race extends RealmObject {
     private Date endTime;
     private RealmList<CheckPoint> checkPoints;
     private String organizerId;
+    private Date createTime; // 创建时间
+    private int sequenceNumber; // 序号：按创建顺序编号，从1开始
 
     public String getRaceId() {
         return raceId;
@@ -74,7 +76,24 @@ public class Race extends RealmObject {
     public void setOrganizerId(String organizerId) {
         this.organizerId = organizerId;
     }
+
+    public Date getCreateTime() {
+        return createTime;
+    }
+
+    public void setCreateTime(Date createTime) {
+        this.createTime = createTime;
+    }
+
+    public int getSequenceNumber() {
+        return sequenceNumber;
+    }
+
+    public void setSequenceNumber(int sequenceNumber) {
+        this.sequenceNumber = sequenceNumber;
+    }
 }
+
 
 
 

@@ -17,7 +17,6 @@ import com.example.cross_intelligence.mvc.model.User;
 import com.example.cross_intelligence.mvc.util.PreferenceUtil;
 import com.example.cross_intelligence.mvc.util.UIUtil;
 import com.example.cross_intelligence.mvc.view.admin.AdminMainActivity;
-import com.example.cross_intelligence.mvc.view.checkin.CheckInActivity;
 import com.example.cross_intelligence.mvc.view.profile.UserSettingsActivity;
 
 import java.util.Arrays;
@@ -122,7 +121,7 @@ public class LoginActivity extends BaseActivity {
                     if ("管理员".equals(role)) {
                         target = AdminMainActivity.class;
                     } else if ("选手".equals(role)) {
-                        target = CheckInActivity.class;
+                        target = com.example.cross_intelligence.mvc.view.player.PlayerMainActivity.class;
                     } else {
                         target = UserSettingsActivity.class;
                     }

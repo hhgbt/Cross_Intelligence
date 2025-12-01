@@ -8,17 +8,30 @@ import static org.junit.Assert.assertNull;
 public class LoginFormValidatorTest {
 
     @Test
-    public void validateAccount_adminRule() {
-        assertEquals("管理员账号需以 admin 开头",
-                LoginFormValidator.validateAccount("teacher01", "管理员"));
+    public void validateAccount_format() {
+        // 空账号
+        assertEquals("请输入账号", LoginFormValidator.validateAccount("", "管理员"));
+        assertEquals("请输入账号", LoginFormValidator.validateAccount(null, "选手"));
+        
+        // 有效账号：数字、字母、下划线组合
         assertNull(LoginFormValidator.validateAccount("admin001", "管理员"));
-    }
-
-    @Test
-    public void validateAccount_playerRule() {
-        assertEquals("选手账号需为学号（至少6位数字）",
-                LoginFormValidator.validateAccount("123", "选手"));
+        assertNull(LoginFormValidator.validateAccount("teacher01", "管理员"));
+        assertNull(LoginFormValidator.validateAccount("user_123", "选手"));
+        assertNull(LoginFormValidator.validateAccount("ABC123", "选手"));
+        assertNull(LoginFormValidator.validateAccount("test_user", "管理员"));
         assertNull(LoginFormValidator.validateAccount("2023123456", "选手"));
+        
+        // 无效账号：包含特殊字符（除了下划线）
+        assertEquals("账号只能包含数字、字母和下划线",
+                LoginFormValidator.validateAccount("user@123", "管理员"));
+        assertEquals("账号只能包含数字、字母和下划线",
+                LoginFormValidator.validateAccount("user-123", "选手"));
+        assertEquals("账号只能包含数字、字母和下划线",
+                LoginFormValidator.validateAccount("user.123", "管理员"));
+        assertEquals("账号只能包含数字、字母和下划线",
+                LoginFormValidator.validateAccount("user 123", "选手"));
+        assertEquals("账号只能包含数字、字母和下划线",
+                LoginFormValidator.validateAccount("用户123", "管理员"));
     }
 
     @Test
@@ -33,6 +46,7 @@ public class LoginFormValidatorTest {
         assertNull(LoginFormValidator.validateRole("管理员"));
     }
 }
+
 
 
 
