@@ -30,6 +30,7 @@ import com.example.cross_intelligence.databinding.ActivityCreateRaceBinding;
 import com.example.cross_intelligence.databinding.DialogCheckpointBinding;
 import com.example.cross_intelligence.mvc.base.BaseActivity;
 import com.example.cross_intelligence.mvc.controller.RaceManager;
+import com.example.cross_intelligence.mvc.location.MapLocationManager;
 import com.example.cross_intelligence.mvc.model.CheckPoint;
 import com.example.cross_intelligence.mvc.model.Race;
 import com.example.cross_intelligence.mvc.util.PreferenceUtil;
@@ -50,7 +51,9 @@ import java.util.UUID;
 /**
  * 赛事创建页面：集成高德地图选择打卡点，并完成数据校验与保存。
  */
-public class CreateRaceActivity extends BaseActivity implements AMap.OnMapClickListener {
+public class CreateRaceActivity extends BaseActivity implements 
+        AMap.OnMapClickListener, 
+        MapLocationManager.LocationCallback {
 
     private static final int MAX_CHECKPOINTS = 40;
     private static final double DUPLICATE_THRESHOLD = 0.00005;
@@ -71,6 +74,8 @@ public class CreateRaceActivity extends BaseActivity implements AMap.OnMapClickL
             new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.CHINA);
     private final Map<String, LatLng> presetCities = new HashMap<>();
     private String editingRaceId; // 编辑模式下的赛事ID，为 null 表示创建模式
+    private MapLocationManager locationManager; // 定位管理器
+    private boolean isFirstLocation = true; // 标记是否首次定位
     @Override
     protected int getLayoutId() {
         return 0;
@@ -89,6 +94,9 @@ public class CreateRaceActivity extends BaseActivity implements AMap.OnMapClickL
         
         initView();
         initData();
+        
+        // 初始化定位管理器
+        locationManager = new MapLocationManager(this, this);
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -184,7 +192,7 @@ public class CreateRaceActivity extends BaseActivity implements AMap.OnMapClickL
             }
         }
         if (target == null) {
-            UIUtil.showToast(this, "暂不支持该城市搜索，请尝试北京/上海/杭州/广州/深圳");
+            UIUtil.showToast(this, "暂不支持该地点搜索，请尝试：昆明/大理/丽江/玉溪/曲靖/保山/昭通/普洱/临沧/楚雄/蒙自/文山/景洪/芒市/泸水/香格里拉");
             return;
         }
         aMap.animateCamera(CameraUpdateFactory.newLatLngZoom(target, 14f));
@@ -204,18 +212,72 @@ public class CreateRaceActivity extends BaseActivity implements AMap.OnMapClickL
             binding.etEndTime.setText(dateTimeFormat.format(calendar.getTime()));
         }
 
-        // 初始化常用城市中心点，用于快速跳转
+        // 初始化云南省内主要城市和区县中心点，用于快速跳转
         presetCities.clear();
-        presetCities.put("北京", new LatLng(39.9042, 116.4074));
-        presetCities.put("beijing", new LatLng(39.9042, 116.4074));
-        presetCities.put("上海", new LatLng(31.2304, 121.4737));
-        presetCities.put("shanghai", new LatLng(31.2304, 121.4737));
-        presetCities.put("杭州", new LatLng(30.2741, 120.1551));
-        presetCities.put("hangzhou", new LatLng(30.2741, 120.1551));
-        presetCities.put("广州", new LatLng(23.1291, 113.2644));
-        presetCities.put("guangzhou", new LatLng(23.1291, 113.2644));
-        presetCities.put("深圳", new LatLng(22.5431, 114.0579));
-        presetCities.put("shenzhen", new LatLng(22.5431, 114.0579));
+        // 昆明市
+        presetCities.put("昆明", new LatLng(25.0389, 102.7183));
+        presetCities.put("昆明市", new LatLng(25.0389, 102.7183));
+        presetCities.put("kunming", new LatLng(25.0389, 102.7183));
+        // 大理市
+        presetCities.put("大理", new LatLng(25.6065, 100.2676));
+        presetCities.put("大理市", new LatLng(25.6065, 100.2676));
+        presetCities.put("dali", new LatLng(25.6065, 100.2676));
+        // 丽江市
+        presetCities.put("丽江", new LatLng(26.8550, 100.2277));
+        presetCities.put("丽江市", new LatLng(26.8550, 100.2277));
+        presetCities.put("lijiang", new LatLng(26.8550, 100.2277));
+        // 玉溪市
+        presetCities.put("玉溪", new LatLng(24.3473, 102.5439));
+        presetCities.put("玉溪市", new LatLng(24.3473, 102.5439));
+        presetCities.put("yuxi", new LatLng(24.3473, 102.5439));
+        // 曲靖市
+        presetCities.put("曲靖", new LatLng(25.4899, 103.7962));
+        presetCities.put("曲靖市", new LatLng(25.4899, 103.7962));
+        presetCities.put("qujing", new LatLng(25.4899, 103.7962));
+        // 保山市
+        presetCities.put("保山", new LatLng(25.1118, 99.1618));
+        presetCities.put("保山市", new LatLng(25.1118, 99.1618));
+        presetCities.put("baoshan", new LatLng(25.1118, 99.1618));
+        // 昭通市
+        presetCities.put("昭通", new LatLng(27.3382, 103.7175));
+        presetCities.put("昭通市", new LatLng(27.3382, 103.7175));
+        presetCities.put("zhaotong", new LatLng(27.3382, 103.7175));
+        // 普洱市
+        presetCities.put("普洱", new LatLng(22.7873, 100.9786));
+        presetCities.put("普洱市", new LatLng(22.7873, 100.9786));
+        presetCities.put("puer", new LatLng(22.7873, 100.9786));
+        // 临沧市
+        presetCities.put("临沧", new LatLng(23.8772, 100.0878));
+        presetCities.put("临沧市", new LatLng(23.8772, 100.0878));
+        presetCities.put("lincang", new LatLng(23.8772, 100.0878));
+        // 楚雄市
+        presetCities.put("楚雄", new LatLng(25.0320, 101.5460));
+        presetCities.put("楚雄市", new LatLng(25.0320, 101.5460));
+        presetCities.put("chuxiong", new LatLng(25.0320, 101.5460));
+        // 红河州（蒙自市）
+        presetCities.put("蒙自", new LatLng(23.3631, 103.3849));
+        presetCities.put("蒙自市", new LatLng(23.3631, 103.3849));
+        presetCities.put("mengzi", new LatLng(23.3631, 103.3849));
+        // 文山州（文山市）
+        presetCities.put("文山", new LatLng(23.3690, 104.2443));
+        presetCities.put("文山市", new LatLng(23.3690, 104.2443));
+        presetCities.put("wenshan", new LatLng(23.3690, 104.2443));
+        // 西双版纳（景洪市）
+        presetCities.put("景洪", new LatLng(22.0094, 100.7979));
+        presetCities.put("景洪市", new LatLng(22.0094, 100.7979));
+        presetCities.put("jinghong", new LatLng(22.0094, 100.7979));
+        presetCities.put("西双版纳", new LatLng(22.0094, 100.7979));
+        // 德宏州（芒市）
+        presetCities.put("芒市", new LatLng(24.4337, 98.5856));
+        presetCities.put("mangshi", new LatLng(24.4337, 98.5856));
+        // 怒江州（泸水市）
+        presetCities.put("泸水", new LatLng(25.8516, 98.8543));
+        presetCities.put("泸水市", new LatLng(25.8516, 98.8543));
+        presetCities.put("lushui", new LatLng(25.8516, 98.8543));
+        // 迪庆州（香格里拉市）
+        presetCities.put("香格里拉", new LatLng(27.8297, 99.7026));
+        presetCities.put("香格里拉市", new LatLng(27.8297, 99.7026));
+        presetCities.put("xianggelila", new LatLng(27.8297, 99.7026));
     }
 
     /**
@@ -703,12 +765,21 @@ public class CreateRaceActivity extends BaseActivity implements AMap.OnMapClickL
     protected void onResume() {
         super.onResume();
         mapView.onResume();
+        // 启动定位
+        if (locationManager != null) {
+            locationManager.setHighPrecision(true);
+            locationManager.start();
+        }
     }
 
     @Override
     protected void onPause() {
         super.onPause();
         mapView.onPause();
+        // 停止定位
+        if (locationManager != null) {
+            locationManager.stop();
+        }
     }
 
     @Override
@@ -720,6 +791,11 @@ public class CreateRaceActivity extends BaseActivity implements AMap.OnMapClickL
         if (routePolyline != null) {
             routePolyline.remove();
             routePolyline = null;
+        }
+        // 销毁定位管理器
+        if (locationManager != null) {
+            locationManager.destroy();
+            locationManager = null;
         }
         mapView.onDestroy();
     }
@@ -735,6 +811,30 @@ public class CreateRaceActivity extends BaseActivity implements AMap.OnMapClickL
                 .remove("draft_race_end_time")
                 .remove("draft_checkpoints_count")
                 .applyAsync();
+    }
+
+    // ========== 定位回调接口实现 ==========
+
+    @Override
+    public void onLocationUpdate(double lat, double lng, float accuracy) {
+        // 当定位更新时，将地图中心移动到当前位置
+        // 仅在首次定位时移动，避免干扰用户手动操作地图
+        runOnUiThread(() -> {
+            if (aMap != null && isFirstLocation) {
+                // 首次定位时，平滑移动到当前位置并设置合适的缩放级别
+                aMap.animateCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(lat, lng), 16f));
+                isFirstLocation = false; // 标记已进行首次定位
+            }
+        });
+    }
+
+    @Override
+    public void onLocationError(int errorCode, String errorInfo) {
+        // 定位错误时显示提示（可选，不阻塞用户操作）
+        runOnUiThread(() -> {
+            // 静默处理，不显示错误提示，避免干扰用户创建赛事
+            // 如果需要，可以在这里添加日志记录
+        });
     }
 
 }
