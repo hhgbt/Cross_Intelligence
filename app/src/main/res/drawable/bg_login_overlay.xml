@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 登录页面背景渐变遮罩 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <gradient
+        android:angle="135"
+        android:startColor="#CC2E7D32"
+        android:centerColor="#B3388E3C"
+        android:endColor="#994CAF50"
+        android:type="linear" />
+</shape>
+
+

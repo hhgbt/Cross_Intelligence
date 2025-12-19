@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 登录页面自定义样式 -->
+    
+    <!-- 输入框样式 -->
+    <style name="LoginInputStyle" parent="Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+        <item name="boxCornerRadiusTopStart">16dp</item>
+        <item name="boxCornerRadiusTopEnd">16dp</item>
+        <item name="boxCornerRadiusBottomStart">16dp</item>
+        <item name="boxCornerRadiusBottomEnd">16dp</item>
+        <item name="boxStrokeColor">@color/white</item>
+        <item name="boxStrokeWidth">2dp</item>
+        <item name="hintTextColor">@color/white</item>
+        <item name="android:textColorHint">#E0FFFFFF</item>
+    </style>
+    
+    <!-- 输入框文字样式 -->
+    <style name="LoginEditTextStyle" parent="Widget.MaterialComponents.TextInputEditText.OutlinedBox">
+        <item name="android:textColor">@color/white</item>
+        <item name="android:textColorHint">#B3FFFFFF</item>
+        <item name="android:textSize">16sp</item>
+    </style>
+</resources>
+
+
