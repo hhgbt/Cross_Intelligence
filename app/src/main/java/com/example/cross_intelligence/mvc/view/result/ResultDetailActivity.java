@@ -4,6 +4,7 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.view.View;
 
 import androidx.annotation.Nullable;
 
@@ -11,12 +12,17 @@ import com.example.cross_intelligence.R;
 import com.example.cross_intelligence.databinding.ActivityResultDetailBinding;
 import com.example.cross_intelligence.mvc.base.BaseActivity;
 import com.example.cross_intelligence.mvc.controller.ResultManager;
+import com.example.cross_intelligence.mvc.controller.TrackManager;
+import com.example.cross_intelligence.mvc.location.RaceMapController;
 import com.example.cross_intelligence.mvc.model.Result;
+import com.example.cross_intelligence.mvc.model.TrackPoint;
+import com.example.cross_intelligence.mvc.util.DistanceUtil;
 import com.example.cross_intelligence.mvc.util.ResultExportUtil;
 import com.example.cross_intelligence.mvc.util.UIUtil;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.List;
 
 public class ResultDetailActivity extends BaseActivity {
 
@@ -24,6 +30,8 @@ public class ResultDetailActivity extends BaseActivity {
 
     private ActivityResultDetailBinding binding;
     private Result currentResult;
+    private RaceMapController mapController;  // 【新增】地图控制器
+    private TrackManager trackManager;        // 【新增】轨迹管理器
 
     @Override
     protected int getLayoutId() {
@@ -35,6 +43,11 @@ public class ResultDetailActivity extends BaseActivity {
         super.onCreate(savedInstanceState);
         binding = ActivityResultDetailBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
+        
+        // 【新增】初始化地图
+        mapController = new RaceMapController(binding.mapViewTrack);
+        mapController.onCreate(savedInstanceState);
+        
         initView();
         initData();
     }
@@ -48,6 +61,8 @@ public class ResultDetailActivity extends BaseActivity {
     @Override
     protected void initData() {
         ResultManager resultManager = new ResultManager();
+        trackManager = new TrackManager();  // 【新增】初始化轨迹管理器
+        
         String resultId = getIntent().getStringExtra(EXTRA_RESULT_ID);
         if (TextUtils.isEmpty(resultId)) {
             UIUtil.showToast(this, "缺少成绩ID");
@@ -61,6 +76,76 @@ public class ResultDetailActivity extends BaseActivity {
             return;
         }
         renderResult(currentResult);
+        
+        // 【新增】加载并显示轨迹
+        loadAndDisplayTrack();
+    }
+    
+    /**
+     * 【新增】加载并显示轨迹
+     */
+    private void loadAndDisplayTrack() {
+        if (currentResult == null) {
+            return;
+        }
+        
+        String raceId = currentResult.getRaceId();
+        String userId = currentResult.getUserId();
+        
+        // 查询轨迹数据
+        List<TrackPoint> trackPoints = trackManager.queryTrack(raceId, userId);
+        
+        if (trackPoints == null || trackPoints.isEmpty()) {
+            // 没有轨迹数据
+            binding.tvTrackStats.setText("暂无轨迹数据");
+            binding.mapViewTrack.setVisibility(View.GONE);
+            binding.tvTrackTitle.setVisibility(View.GONE);
+            UIUtil.showToast(this, "该场比赛没有记录轨迹");
+            return;
+        }
+        
+        // 显示轨迹统计信息
+        double totalDistance = calculateTotalDistance(trackPoints);
+        binding.tvTrackStats.setText(String.format(
+                "轨迹点数：%d 个  |  总距离：%.2f 公里",
+                trackPoints.size(),
+                totalDistance / 1000.0
+        ));
+        
+        // 在地图上绘制轨迹
+        for (TrackPoint point : trackPoints) {
+            mapController.addTrackPoint(point.getLatitude(), point.getLongitude());
+        }
+        
+        // 移动相机到第一个轨迹点
+        if (!trackPoints.isEmpty()) {
+            TrackPoint firstPoint = trackPoints.get(0);
+            mapController.moveCamera(firstPoint.getLatitude(), firstPoint.getLongitude());
+        }
+        
+        UIUtil.showToast(this, "已加载 " + trackPoints.size() + " 个轨迹点");
+    }
+    
+    /**
+     * 【新增】计算轨迹总距离
+     */
+    private double calculateTotalDistance(List<TrackPoint> trackPoints) {
+        if (trackPoints == null || trackPoints.size() < 2) {
+            return 0.0;
+        }
+        
+        double totalDistance = 0.0;
+        for (int i = 1; i < trackPoints.size(); i++) {
+            TrackPoint prev = trackPoints.get(i - 1);
+            TrackPoint curr = trackPoints.get(i);
+            double distance = DistanceUtil.distanceMeters(
+                    prev.getLatitude(), prev.getLongitude(),
+                    curr.getLatitude(), curr.getLongitude()
+            );
+            totalDistance += distance;
+        }
+        
+        return totalDistance;
     }
 
     private void renderResult(Result result) {
@@ -97,6 +182,39 @@ public class ResultDetailActivity extends BaseActivity {
             startActivity(Intent.createChooser(intent, "导出成绩"));
         } catch (IOException e) {
             UIUtil.showToast(this, "导出失败：" + e.getMessage());
+        }
+    }
+    
+    // 【新增】地图生命周期管理
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (mapController != null) {
+            mapController.onResume();
+        }
+    }
+    
+    @Override
+    protected void onPause() {
+        super.onPause();
+        if (mapController != null) {
+            mapController.onPause();
+        }
+    }
+    
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (mapController != null) {
+            mapController.onDestroy();
+        }
+    }
+    
+    @Override
+    protected void onSaveInstanceState(@androidx.annotation.NonNull Bundle outState) {
+        super.onSaveInstanceState(outState);
+        if (mapController != null) {
+            mapController.onSaveInstanceState(outState);
         }
     }
 }

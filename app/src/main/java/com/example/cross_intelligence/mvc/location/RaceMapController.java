@@ -37,6 +37,13 @@ public class RaceMapController implements AMap.OnMapClickListener, AMap.OnMarker
     private final List<Marker> currentMarkers = new ArrayList<>();
     private Polyline trackPolyline;
     private MapEventListener mapEventListener;
+    
+    // 轨迹优化：缓存点列表，避免频繁调用 getPoints()
+    private List<LatLng> trackPointsCache = new ArrayList<>();
+    // 上一个添加的点，用于防抖动
+    private LatLng lastTrackPoint = null;
+    // 相机是否应该跟随轨迹
+    private boolean cameraFollowEnabled = false;
 
     public RaceMapController(@NonNull MapView mapView) {
         this(mapView, mapView.getMap());
@@ -75,6 +82,10 @@ public class RaceMapController implements AMap.OnMapClickListener, AMap.OnMarker
         mapView.onDestroy();
     }
 
+    public void onSaveInstanceState(@NonNull Bundle outState) {
+        mapView.onSaveInstanceState(outState);
+    }
+
     public void addCheckPoints(@NonNull List<CheckPoint> points) {
         clearMarkers();
         for (CheckPoint point : points) {
@@ -85,6 +96,14 @@ public class RaceMapController implements AMap.OnMapClickListener, AMap.OnMarker
             marker.setObject(point);
             currentMarkers.add(marker);
         }
+    }
+
+    /**
+     * 【状态同步】清除所有打卡点标记
+     * 用于实时更新时先清除旧标记
+     */
+    public void clearCheckPoints() {
+        clearMarkers();
     }
 
     public void moveCamera(double lat, double lng) {
@@ -98,6 +117,9 @@ public class RaceMapController implements AMap.OnMapClickListener, AMap.OnMarker
         currentMarkers.clear();
     }
 
+    /**
+     * 绘制完整轨迹（从 TrackPoint 列表）
+     */
     public void drawTrack(@NonNull List<TrackPoint> trackPoints) {
         if (trackPolyline != null) {
             trackPolyline.remove();
@@ -114,10 +136,100 @@ public class RaceMapController implements AMap.OnMapClickListener, AMap.OnMarker
         }
         trackPolyline = aMap.addPolyline(new PolylineOptions()
                 .addAll(latLngs)
-                .width(8)
+                .width(10)
                 .useGradient(true)
                 .color(0xFF2196F3));
         aMap.animateCamera(CameraUpdateFactory.newLatLngBounds(boundsBuilder.build(), 80));
+    }
+
+    /**
+     * 添加轨迹点（实时画线 - 优化版）
+     * 优化策略：
+     * 1. 防抖动：避免相同或极近位置的重复点
+     * 2. 缓存机制：不每次都调用 getPoints()
+     * 3. 平滑更新：只更新点列表，不重绘地图
+     * 4. 可选相机跟随：平滑移动视角
+     * 
+     * @param lat 纬度
+     * @param lng 经度
+     */
+    public void addTrackPoint(double lat, double lng) {
+        LatLng newPoint = new LatLng(lat, lng);
+        
+        // 防抖动：如果与上一个点距离太近（< 2米），跳过
+        if (lastTrackPoint != null) {
+            double distance = calculateDistance(
+                lastTrackPoint.latitude, lastTrackPoint.longitude,
+                newPoint.latitude, newPoint.longitude
+            );
+            if (distance < 2.0) {
+                return; // 距离太近，不添加
+            }
+        }
+        
+        if (trackPolyline == null) {
+            // 首次创建轨迹线
+            trackPointsCache.clear();
+            trackPointsCache.add(newPoint);
+            trackPolyline = aMap.addPolyline(new PolylineOptions()
+                    .addAll(trackPointsCache)
+                    .width(10)
+                    .useGradient(true)
+                    .color(0xFF2196F3));
+        } else {
+            // 平滑更新：直接添加到缓存并更新 Polyline
+            trackPointsCache.add(newPoint);
+            trackPolyline.setPoints(trackPointsCache);
+        }
+        
+        lastTrackPoint = newPoint;
+        
+        // 可选：相机平滑跟随
+        if (cameraFollowEnabled) {
+            aMap.animateCamera(CameraUpdateFactory.newLatLng(newPoint), 200, null);
+        }
+    }
+    
+    /**
+     * 计算两点间距离（米）
+     * 使用 Haversine 公式
+     */
+    private double calculateDistance(double lat1, double lng1, double lat2, double lng2) {
+        final double EARTH_RADIUS = 6371000; // 地球半径（米）
+        double dLat = Math.toRadians(lat2 - lat1);
+        double dLng = Math.toRadians(lng2 - lng1);
+        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                   Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2)) *
+                   Math.sin(dLng / 2) * Math.sin(dLng / 2);
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return EARTH_RADIUS * c;
+    }
+
+    /**
+     * 清除轨迹线
+     */
+    public void clearTrack() {
+        if (trackPolyline != null) {
+            trackPolyline.remove();
+            trackPolyline = null;
+        }
+        trackPointsCache.clear();
+        lastTrackPoint = null;
+    }
+    
+    /**
+     * 设置相机是否跟随轨迹
+     * @param enabled true 为跟随，false 为不跟随
+     */
+    public void setCameraFollowEnabled(boolean enabled) {
+        this.cameraFollowEnabled = enabled;
+    }
+    
+    /**
+     * 获取当前轨迹点数量
+     */
+    public int getTrackPointCount() {
+        return trackPointsCache.size();
     }
 
     public void setMapEventListener(@Nullable MapEventListener listener) {

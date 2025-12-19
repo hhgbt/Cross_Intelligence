@@ -13,6 +13,7 @@ okhttpLogging = "5.3.2"
 mockito = "5.11.0"
 amap3d = "10.0.600"
 zxing = "4.3.0"
+lottie = "6.1.0"
 testRules = "1.7.0"
 fragmentTesting = "1.8.9"
 preference = "1.2.1"
@@ -32,6 +33,7 @@ okhttp-logging = { group = "com.squareup.okhttp3", name = "logging-interceptor",
 mockito-core = { group = "org.mockito", name = "mockito-core", version.ref = "mockito" }
 amap3d = { group = "com.amap.api", name = "3dmap", version.ref = "amap3d" }
 zxing = { group = "com.journeyapps", name = "zxing-android-embedded", version.ref = "zxing" }
+lottie = { group = "com.airbnb.android", name = "lottie", version.ref = "lottie" }
 test-rules = { group = "androidx.test", name = "rules", version.ref = "testRules" }
 fragment-testing = { group = "androidx.fragment", name = "fragment-testing", version.ref = "fragmentTesting" }
 preference = { group = "androidx.preference", name = "preference", version.ref = "preference" }

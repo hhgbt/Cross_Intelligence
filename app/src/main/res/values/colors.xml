@@ -7,4 +7,10 @@
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
+    
+    <!-- 品牌色：越野赛主题 -->
+    <color name="forest_green">#2E7D32</color>           <!-- 深林绿：主品牌色 -->
+    <color name="forest_green_light">#4CAF50</color>     <!-- 浅林绿：辅助色 -->
+    <color name="trail_orange">#FF6F00</color>           <!-- 越野橙：强调色 -->
+    <color name="trail_orange_light">#FFA726</color>     <!-- 浅橙色：辅助色 -->
 </resources>

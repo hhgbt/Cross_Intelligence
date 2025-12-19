@@ -39,6 +39,16 @@
     <!--允许写设备缓存，用于问题排查-->
     <uses-permission android:name="android.permission.WRITE_SETTINGS" />
 
+    <!-- 保存二维码到相册（Android 9 及以下需要） -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="28" />
+
+    <!-- 前台服务权限（Android 9+）-->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+
+    <!-- 前台服务位置权限（Android 10+）-->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+
     <application
         android:name=".CrossIntelligenceApp"
         android:allowBackup="true"
@@ -98,6 +108,21 @@
         <activity
             android:name="com.example.cross_intelligence.mvc.view.result.LeaderboardActivity"
             android:exported="false" />
+        
+        <!-- 【新增】我的成绩页面 -->
+        <activity
+            android:name="com.example.cross_intelligence.mvc.view.result.MyResultsActivity"
+            android:exported="false" />
+        
+        <!-- 选手端新增：赛事大厅 -->
+        <activity
+            android:name="com.example.cross_intelligence.mvc.view.player.RaceDiscoveryActivity"
+            android:exported="false" />
+        
+        <!-- 选手端新增：我的赛事 -->
+        <activity
+            android:name="com.example.cross_intelligence.mvc.view.player.MyRacesActivity"
+            android:exported="false" />
 
         <provider
             android:name="androidx.core.content.FileProvider"
@@ -117,6 +142,14 @@
         <service
             android:name="com.amap.api.location.APSService"
             android:exported="false">
+        </service>
+
+        <!-- 轨迹记录后台服务 -->
+        <service
+            android:name="com.example.cross_intelligence.mvc.service.TrackRecorderService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="location">
         </service>
 
     </application>

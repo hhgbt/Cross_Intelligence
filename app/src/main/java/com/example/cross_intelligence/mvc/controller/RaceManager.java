@@ -30,6 +30,7 @@ public class RaceManager {
         public String type;
         public double checkRadius;
         public int orderIndex;
+        public String qrCodePayload; // 二维码内容
     }
 
     public interface RaceListCallback {
@@ -43,6 +44,13 @@ public class RaceManager {
     }
 
     public void createRace(String name, String description, Date start, Date end, List<CheckPointData> pointsData, String organizerId, @NonNull SaveCallback callback) {
+        createRaceWithId(UUID.randomUUID().toString(), name, description, start, end, pointsData, organizerId, callback);
+    }
+
+    /**
+     * 使用指定 ID 创建赛事（用于二维码生成）
+     */
+    public void createRaceWithId(String raceId, String name, String description, Date start, Date end, List<CheckPointData> pointsData, String organizerId, @NonNull SaveCallback callback) {
         Realm realm = Realm.getDefaultInstance();
         realm.executeTransactionAsync(
             bgRealm -> {
@@ -52,9 +60,8 @@ public class RaceManager {
                         .count();
                 int sequenceNumber = (int) existingCount + 1;
                 
-                // 创建赛事
-                Race race = bgRealm.createObject(Race.class, UUID.randomUUID().toString());
-                String raceId = race.getRaceId();
+                // 创建赛事（使用指定的 raceId）
+                Race race = bgRealm.createObject(Race.class, raceId);
                 race.setName(name);
                 race.setDescription(description != null ? description : "");
                 race.setStartTime(start);
@@ -69,13 +76,14 @@ public class RaceManager {
                     // 创建新的 CheckPoint 对象（使用新的 UUID 避免冲突）
                     String newId = UUID.randomUUID().toString();
                     CheckPoint newPoint = bgRealm.createObject(CheckPoint.class, newId);
-                    newPoint.setRaceId(raceId);
+                    newPoint.setRaceId(race.getRaceId());
                     newPoint.setName(data.name);
                     newPoint.setLatitude(data.latitude);
                     newPoint.setLongitude(data.longitude);
                     newPoint.setType(data.type != null ? data.type : "检查点");
                     newPoint.setCheckRadius(data.checkRadius > 0 ? data.checkRadius : 50.0);
                     newPoint.setOrderIndex(data.orderIndex);
+                    newPoint.setQrCodePayload(data.qrCodePayload); // 设置二维码内容
                     realmPoints.add(newPoint);
                 }
                 race.setCheckPoints(realmPoints);
@@ -172,6 +180,51 @@ public class RaceManager {
     }
 
     /**
+     * 获取所有赛事（供选手浏览赛事大厅）
+     */
+    public void getAllRaces(@NonNull RaceListCallback callback) {
+        Realm realm = Realm.getDefaultInstance();
+        RealmResults<Race> results = realm.where(Race.class)
+                .findAll()
+                .sort("createTime"); // 按创建时间排序
+        // 转换为普通列表并返回
+        List<Race> raceList = realm.copyFromRealm(results);
+        // 按创建时间从新到旧排序（最新的在前面）
+        raceList.sort((r1, r2) -> {
+            if (r1.getCreateTime() == null && r2.getCreateTime() == null) return 0;
+            if (r1.getCreateTime() == null) return 1;
+            if (r2.getCreateTime() == null) return -1;
+            return r2.getCreateTime().compareTo(r1.getCreateTime()); // 降序，新的在前
+        });
+        callback.onLoaded(raceList);
+        realm.close();
+    }
+
+    /**
+     * 根据用户报名记录获取已报名的赛事列表
+     * @param userSignedUpRaceIds 用户已报名的赛事ID列表
+     * @param callback 回调函数
+     */
+    public void getRacesByIds(@NonNull List<String> userSignedUpRaceIds, @NonNull RaceListCallback callback) {
+        if (userSignedUpRaceIds.isEmpty()) {
+            callback.onLoaded(new ArrayList<>());
+            return;
+        }
+        Realm realm = Realm.getDefaultInstance();
+        List<Race> races = new ArrayList<>();
+        for (String raceId : userSignedUpRaceIds) {
+            Race race = realm.where(Race.class)
+                    .equalTo("raceId", raceId)
+                    .findFirst();
+            if (race != null) {
+                races.add(realm.copyFromRealm(race));
+            }
+        }
+        callback.onLoaded(races);
+        realm.close();
+    }
+
+    /**
      * 更新赛事信息
      */
     public void updateRace(@NonNull String raceId, String name, String description, Date start, Date end, List<CheckPointData> pointsData, @NonNull SaveCallback callback) {
@@ -205,6 +258,7 @@ public class RaceManager {
                         newPoint.setType(data.type != null ? data.type : "检查点");
                         newPoint.setCheckRadius(data.checkRadius > 0 ? data.checkRadius : 50.0);
                         newPoint.setOrderIndex(data.orderIndex);
+                        newPoint.setQrCodePayload(data.qrCodePayload); // 设置二维码内容
                         realmPoints.add(newPoint);
                     }
                     race.setCheckPoints(realmPoints);

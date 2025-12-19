@@ -126,5 +126,21 @@ public class ResultManager {
         realm.close();
         return copy;
     }
+    
+    /**
+     * 【新增】查询指定用户的所有成绩（用于"我的成绩"页面）
+     * @param userId 用户ID
+     * @return 该用户的所有成绩列表，按时间倒序排列
+     */
+    public List<Result> loadResultsByUserId(@NonNull String userId) {
+        Realm realm = Realm.getDefaultInstance();
+        RealmResults<Result> results = realm.where(Result.class)
+                .equalTo("userId", userId)
+                .findAll()
+                .sort("resultId"); // 按ID排序（可改为按时间排序，如果Result增加timestamp字段）
+        List<Result> copy = realm.copyFromRealm(results);
+        realm.close();
+        return copy;
+    }
 }
 

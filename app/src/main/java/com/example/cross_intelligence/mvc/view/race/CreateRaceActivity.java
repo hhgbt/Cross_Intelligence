@@ -34,6 +34,7 @@ import com.example.cross_intelligence.mvc.location.MapLocationManager;
 import com.example.cross_intelligence.mvc.model.CheckPoint;
 import com.example.cross_intelligence.mvc.model.Race;
 import com.example.cross_intelligence.mvc.util.PreferenceUtil;
+import com.example.cross_intelligence.mvc.util.QrCodeGenerator;
 import com.example.cross_intelligence.mvc.util.UIUtil;
 import com.example.cross_intelligence.mvc.view.admin.AdminMainActivity;
 import com.google.android.material.textfield.TextInputEditText;
@@ -57,9 +58,10 @@ public class CreateRaceActivity extends BaseActivity implements
 
     private static final int MAX_CHECKPOINTS = 40;
     private static final double DUPLICATE_THRESHOLD = 0.00005;
-    private static final String TYPE_START = "起点";
-    private static final String TYPE_CHECKPOINT = "检查点";
-    private static final String TYPE_END = "终点";
+    // 使用 CheckPoint 模型中定义的常量
+    private static final String TYPE_START = CheckPoint.TYPE_START;
+    private static final String TYPE_CHECKPOINT = CheckPoint.TYPE_CHECKPOINT;
+    private static final String TYPE_END = CheckPoint.TYPE_FINISH;
     private static final double DEFAULT_CHECK_RADIUS = 50.0; // 默认打卡半径50米
 
     private ActivityCreateRaceBinding binding;
@@ -114,6 +116,10 @@ public class CreateRaceActivity extends BaseActivity implements
         binding.rvCheckpoints.setAdapter(adapter);
 
         binding.btnAddManual.setOnClickListener(v -> showCheckpointDialog(null));
+        binding.btnAutoAdjustTypes.setOnClickListener(v -> {
+            autoAdjustCheckpointTypes();
+            UIUtil.showToast(this, "已自动调整：首点为起点，尾点为终点");
+        });
         binding.btnSaveRace.setOnClickListener(v -> saveRace());
         
         // 根据模式设置按钮文本和标题
@@ -417,12 +423,9 @@ public class CreateRaceActivity extends BaseActivity implements
                 dialogBinding.actType.showDropDown();
             }
         });
-        // 如果没有打卡点，默认为起点；否则默认为检查点
-        if (checkPoints.isEmpty()) {
-            dialogBinding.actType.setText(TYPE_START, false);
-        } else {
-            dialogBinding.actType.setText(TYPE_CHECKPOINT, false);
-        }
+        // 智能推荐类型
+        String recommendedType = getRecommendedCheckpointType();
+        dialogBinding.actType.setText(recommendedType, false);
         
         new AlertDialog.Builder(this)
                 .setTitle("新增打卡点")
@@ -501,12 +504,19 @@ public class CreateRaceActivity extends BaseActivity implements
         }
         
         CheckPoint point = new CheckPoint();
-        point.setCheckPointId(UUID.randomUUID().toString());
+        String checkPointId = UUID.randomUUID().toString();
+        point.setCheckPointId(checkPointId);
         point.setName(name);
         point.setLatitude(lat);
         point.setLongitude(lng);
         point.setType(type);
         point.setCheckRadius(radius);
+        
+        // 自动生成二维码 payload（如果有 raceId 则使用，否则等保存时再生成）
+        if (editingRaceId != null) {
+            String qrPayload = QrCodeGenerator.generateCheckPointPayload(editingRaceId, checkPointId);
+            point.setQrCodePayload(qrPayload);
+        }
         
         // 起点设置为1，终点设置为最后，检查点按添加顺序插入到终点之前
         if (TYPE_START.equals(type)) {
@@ -571,6 +581,80 @@ public class CreateRaceActivity extends BaseActivity implements
     /**
      * 更新路线预览：根据打卡点顺序绘制路线
      */
+    /**
+     * 智能推荐打卡点类型
+     * 逻辑：
+     * - 如果没有打卡点，推荐起点
+     * - 如果没有起点，推荐起点
+     * - 如果没有终点且已有2个以上打卡点，推荐终点
+     * - 其他情况推荐检查点
+     */
+    private String getRecommendedCheckpointType() {
+        boolean hasStart = false;
+        boolean hasFinish = false;
+        
+        for (CheckPoint point : checkPoints) {
+            if (TYPE_START.equals(point.getType())) {
+                hasStart = true;
+            } else if (TYPE_END.equals(point.getType())) {
+                hasFinish = true;
+            }
+        }
+        
+        // 没有打卡点或没有起点，推荐起点
+        if (checkPoints.isEmpty() || !hasStart) {
+            return TYPE_START;
+        }
+        
+        // 已有起点，没有终点，且已有2个以上打卡点，推荐终点
+        if (!hasFinish && checkPoints.size() >= 2) {
+            return TYPE_END;
+        }
+        
+        // 其他情况推荐检查点
+        return TYPE_CHECKPOINT;
+    }
+    
+    /**
+     * 自动调整打卡点类型
+     * 规则：
+     * - 第一个点自动设为起点（如果不是）
+     * - 最后一个点自动设为终点（如果不是）
+     * - 其他点保持为检查点
+     */
+    private void autoAdjustCheckpointTypes() {
+        if (checkPoints.isEmpty()) {
+            return;
+        }
+        
+        // 按 orderIndex 排序
+        List<CheckPoint> sortedPoints = new ArrayList<>(checkPoints);
+        sortedPoints.sort((p1, p2) -> Integer.compare(p1.getOrderIndex(), p2.getOrderIndex()));
+        
+        // 第一个点设为起点
+        if (!TYPE_START.equals(sortedPoints.get(0).getType())) {
+            sortedPoints.get(0).setType(TYPE_START);
+        }
+        
+        // 如果有多个点，最后一个设为终点
+        if (sortedPoints.size() > 1) {
+            CheckPoint lastPoint = sortedPoints.get(sortedPoints.size() - 1);
+            if (!TYPE_END.equals(lastPoint.getType())) {
+                lastPoint.setType(TYPE_END);
+            }
+        }
+        
+        // 中间的点保持为检查点
+        for (int i = 1; i < sortedPoints.size() - 1; i++) {
+            if (!TYPE_CHECKPOINT.equals(sortedPoints.get(i).getType())) {
+                sortedPoints.get(i).setType(TYPE_CHECKPOINT);
+            }
+        }
+        
+        // 刷新显示
+        adapter.notifyDataSetChanged();
+    }
+
     private void updateRoutePreview() {
         // 移除旧的路线
         if (routePolyline != null) {
@@ -714,6 +798,10 @@ public class CreateRaceActivity extends BaseActivity implements
 
         // 提取 CheckPoint 数据（在 UI 线程提取所有属性，避免传递 Realm 对象引用）
         List<RaceManager.CheckPointData> checkpointDataList = new ArrayList<>();
+        
+        // 如果是创建模式，需要先生成临时 raceId 用于生成二维码 payload
+        String tempRaceId = editingRaceId != null ? editingRaceId : UUID.randomUUID().toString();
+        
         for (CheckPoint point : checkPoints) {
             RaceManager.CheckPointData data = new RaceManager.CheckPointData();
             data.checkPointId = point.getCheckPointId();
@@ -723,6 +811,14 @@ public class CreateRaceActivity extends BaseActivity implements
             data.type = point.getType();
             data.checkRadius = point.getCheckRadius();
             data.orderIndex = point.getOrderIndex();
+            
+            // 生成二维码 payload（如果还没有的话）
+            if (point.getQrCodePayload() == null || point.getQrCodePayload().isEmpty()) {
+                data.qrCodePayload = QrCodeGenerator.generateCheckPointPayload(tempRaceId, point.getCheckPointId());
+            } else {
+                data.qrCodePayload = point.getQrCodePayload();
+            }
+            
             checkpointDataList.add(data);
         }
         
@@ -730,8 +826,8 @@ public class CreateRaceActivity extends BaseActivity implements
             // 编辑模式：更新现有赛事
             raceManager.updateRace(editingRaceId, name, description, result.getStart(), result.getEnd(), checkpointDataList, callback);
         } else {
-            // 创建模式：创建新赛事
-            raceManager.createRace(name, description, result.getStart(), result.getEnd(), checkpointDataList, organizerId, callback);
+            // 创建模式：使用临时生成的 raceId 创建新赛事
+            raceManager.createRaceWithId(tempRaceId, name, description, result.getStart(), result.getEnd(), checkpointDataList, organizerId, callback);
         }
     }
 

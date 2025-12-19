@@ -87,6 +87,18 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/tvBio" />
 
+        <!-- 【新增】我的成绩按钮 -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnMyResults"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="我的成绩"
+            app:icon="@android:drawable/ic_menu_view"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/btnEdit" />
+
         <TextView
             android:id="@+id/tvSyncStatus"
             android:layout_width="0dp"
@@ -95,7 +107,7 @@
             android:text="同步状态：待同步"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/btnEdit" />
+            app:layout_constraintTop_toBottomOf="@id/btnMyResults" />
 
         <ProgressBar
             android:id="@+id/progressSync"

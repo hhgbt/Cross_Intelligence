@@ -7,6 +7,11 @@ import io.realm.annotations.RealmClass;
 @RealmClass
 public class CheckPoint extends RealmObject {
 
+    // 打卡点类型常量
+    public static final String TYPE_START = "起点";
+    public static final String TYPE_CHECKPOINT = "检查点";
+    public static final String TYPE_FINISH = "终点";
+
     @PrimaryKey
     private String checkPointId;
     private String raceId;
@@ -15,7 +20,7 @@ public class CheckPoint extends RealmObject {
     private double longitude;
     private String qrCodePayload;
     private int orderIndex;
-    private String type; // START, CHECKPOINT, END
+    private String type; // TYPE_START, TYPE_CHECKPOINT, TYPE_FINISH
     private double checkRadius; // 打卡半径（米）
 
     public String getCheckPointId() {

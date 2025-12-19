@@ -67,6 +67,9 @@ dependencies {
     // ZXing QR scanning
     implementation(libs.zxing)
 
+    // Lottie animations
+    implementation(libs.lottie)
+
     // Retrofit + Gson converter
     implementation(libs.retrofit)
     implementation(libs.retrofit.gson)

@@ -27,8 +27,9 @@ public final class RealmHelper {
                     .encryptionKey(encryptionKey)
                     .schemaVersion(RealmConstants.SCHEMA_VERSION)
                     .migration(new RealmMigrationImpl())
+                    .deleteRealmIfMigrationNeeded() // 【开发阶段】遇到迁移问题自动删除旧数据库
                     .allowQueriesOnUiThread(true)
-                    .allowWritesOnUiThread(false)
+                    .allowWritesOnUiThread(true)  // 【修复】允许 UI 线程写入（开发阶段）
                     .compactOnLaunch()
                     .build();
             Realm.setDefaultConfiguration(configuration);

@@ -142,6 +142,18 @@
             app:layout_constraintTop_toBottomOf="@id/rvCheckpoints" />
 
         <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnAutoAdjustTypes"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_marginTop="12dp"
+            android:text="自动调整类型"
+            app:icon="@android:drawable/ic_menu_sort_by_size"
+            app:layout_constraintStart_toEndOf="@id/btnAddManual"
+            app:layout_constraintTop_toBottomOf="@id/rvCheckpoints" />
+
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnSaveRace"
             style="@style/Widget.MaterialComponents.Button"
             android:layout_width="0dp"
@@ -150,7 +162,7 @@
             android:text="保存赛事"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/btnAddManual" />
+            app:layout_constraintTop_toBottomOf="@id/btnAutoAdjustTypes" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 

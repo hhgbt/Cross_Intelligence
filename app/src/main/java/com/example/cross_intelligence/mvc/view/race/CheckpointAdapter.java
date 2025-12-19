@@ -20,12 +20,24 @@ class CheckpointAdapter extends RecyclerView.Adapter<CheckpointAdapter.Checkpoin
         void onDelete(int position);
     }
 
+    interface OnItemQrClickListener {
+        void onQrClick(CheckPoint checkPoint);
+    }
+
     private final List<CheckPoint> data;
     private final OnItemDeleteListener deleteListener;
+    private OnItemQrClickListener qrClickListener;
 
     CheckpointAdapter(List<CheckPoint> data, OnItemDeleteListener deleteListener) {
         this.data = data;
         this.deleteListener = deleteListener;
+    }
+
+    /**
+     * 设置二维码点击监听器
+     */
+    public void setOnItemQrClickListener(OnItemQrClickListener listener) {
+        this.qrClickListener = listener;
     }
 
     @NonNull
@@ -38,10 +50,14 @@ class CheckpointAdapter extends RecyclerView.Adapter<CheckpointAdapter.Checkpoin
     @Override
     public void onBindViewHolder(@NonNull CheckpointViewHolder holder, int position) {
         CheckPoint item = data.get(position);
+        
+        // 根据类型添加标识符号
+        String typeIcon = getTypeIcon(item.getType());
         String nameText = item.getName();
         if (item.getType() != null && !item.getType().isEmpty()) {
-            nameText = nameText + "(" + item.getType() + ")";
+            nameText = typeIcon + " " + nameText + " (" + item.getType() + ")";
         }
+        
         holder.tvName.setText(holder.itemView.getContext().getString(
                 R.string.checkpoint_name_format, item.getOrderIndex(), nameText));
         holder.tvCoord.setText(holder.itemView.getContext().getString(
@@ -59,6 +75,26 @@ class CheckpointAdapter extends RecyclerView.Adapter<CheckpointAdapter.Checkpoin
                 }
             });
         }
+
+        // 设置二维码按钮点击事件
+        holder.btnShowQr.setOnClickListener(v -> {
+            if (qrClickListener != null) {
+                qrClickListener.onQrClick(item);
+            }
+        });
+    }
+    
+    /**
+     * 根据打卡点类型返回对应的图标
+     */
+    private String getTypeIcon(String type) {
+        if (CheckPoint.TYPE_START.equals(type)) {
+            return "🏁"; // 起点旗帜
+        } else if (CheckPoint.TYPE_FINISH.equals(type)) {
+            return "🎯"; // 终点靶心
+        } else {
+            return "📍"; // 检查点图钉
+        }
     }
 
     @Override
@@ -69,12 +105,14 @@ class CheckpointAdapter extends RecyclerView.Adapter<CheckpointAdapter.Checkpoin
     static class CheckpointViewHolder extends RecyclerView.ViewHolder {
         final TextView tvName;
         final TextView tvCoord;
+        final ImageButton btnShowQr;
         final ImageButton btnDelete;
 
         CheckpointViewHolder(@NonNull View itemView) {
             super(itemView);
             tvName = itemView.findViewById(R.id.tvPointName);
             tvCoord = itemView.findViewById(R.id.tvPointCoord);
+            btnShowQr = itemView.findViewById(R.id.btnShowQr);
             btnDelete = itemView.findViewById(R.id.btnDelete);
         }
     }

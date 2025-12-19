@@ -40,6 +40,13 @@ public class ProfileFragment extends BaseFragment {
             Intent intent = new Intent(requireContext(), UserSettingsActivity.class);
             startActivity(intent);
         });
+        
+        // 【新增】我的成绩按钮
+        binding.btnMyResults.setOnClickListener(v -> {
+            Intent intent = new Intent(requireContext(), com.example.cross_intelligence.mvc.view.result.MyResultsActivity.class);
+            startActivity(intent);
+        });
+        
         binding.btnSync.setOnClickListener(v -> {
             if (syncManager != null) {
                 syncManager.syncPendingCheckIns();

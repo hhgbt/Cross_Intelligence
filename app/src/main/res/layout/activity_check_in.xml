@@ -53,15 +53,51 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/tvStatus" />
 
+    <!-- 查看打卡二维码按钮（主要方案） -->
     <com.google.android.material.button.MaterialButton
-        android:id="@+id/btnScanQr"
+        android:id="@+id/btnShowQr"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
-        android:text="扫描二维码"
+        android:text="查看打卡二维码"
+        android:textSize="16sp"
+        app:icon="@android:drawable/ic_menu_gallery"
+        app:iconGravity="textStart"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/switchOnline" />
+
+    <!-- 备用方案链接 -->
+    <TextView
+        android:id="@+id/tvCameraScan"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:text="显示失败？点这里"
+        android:textColor="?attr/colorPrimary"
+        android:textSize="14sp"
+        android:clickable="true"
+        android:focusable="true"
+        android:padding="8dp"
+        android:background="?attr/selectableItemBackground"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/btnShowQr" />
+
+    <!-- 轨迹记录按钮 -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnToggleTrack"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="开始记录轨迹"
+        android:textSize="16sp"
+        app:icon="@drawable/ic_location"
+        app:iconGravity="textStart"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/tvCameraScan"
+        style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
 
     <ProgressBar
         android:id="@+id/progressBar"
@@ -71,7 +107,7 @@
         android:visibility="gone"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/btnScanQr" />
+        app:layout_constraintTop_toBottomOf="@id/btnToggleTrack" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
 

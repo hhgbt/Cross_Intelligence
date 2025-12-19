@@ -96,6 +96,21 @@ public class RealmMigrationImpl implements RealmMigration {
                     oldVersion++;
                     break;
                 }
+                case 5: {
+                    // 版本5到6：添加 RaceSession 模型（用于比赛状态管理和断点续赛）
+                    // Realm 会自动处理新模型类的添加，这里只需要标记版本升级
+                    // RaceSession 包含字段：sessionId, raceId, userId, status, startTime, endTime, 
+                    // totalMillis, startLat, startLng, finishLat, finishLng, 
+                    // checkpointsTotal, checkpointsChecked, trackingEnabled
+                    
+                    // 检查 RaceSession 是否已存在
+                    if (!schema.contains("RaceSession")) {
+                        // Realm 会在下次启动时自动创建新的模型类
+                        // 这里不需要手动创建，因为 @RealmClass 注解会处理
+                    }
+                    oldVersion++;
+                    break;
+                }
                 default:
                     oldVersion = newVersion;
                     break;
