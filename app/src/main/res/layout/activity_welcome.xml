@@ -10,7 +10,7 @@
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:scaleType="centerCrop"
-        android:src="@drawable/welcome_background"
+        android:src="@drawable/welcome_bg"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -27,24 +27,49 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <!-- 中间标题：越野智赛 -->
-    <TextView
-        android:id="@+id/tvTitle"
+    <!-- 标题容器 -->
+    <LinearLayout
+        android:id="@+id/titleContainer"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/welcome_title"
-        android:textColor="@android:color/white"
-        android:textSize="48sp"
-        android:textStyle="bold"
-        android:shadowColor="#80000000"
-        android:shadowDx="2"
-        android:shadowDy="2"
-        android:shadowRadius="4"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:alpha="0"
+        android:layout_marginTop="80dp"
         app:layout_constraintBottom_toTopOf="@+id/btnContainer"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_chainStyle="packed" />
+        app:layout_constraintVertical_bias="0.25"
+        app:layout_constraintVertical_chainStyle="packed">
+
+        <!-- 主标题：越野智赛 -->
+        <TextView
+            android:id="@+id/tvTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/welcome_title"
+            android:textColor="@android:color/white"
+            android:textSize="56sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.12"
+            android:shadowColor="#80000000"
+            android:shadowDx="2"
+            android:shadowDy="2"
+            android:shadowRadius="6" />
+
+        <!-- 副标题：Intelligence -->
+        <TextView
+            android:id="@+id/tvSubtitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Intelligence"
+            android:textColor="#E0FFFFFF"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.15" />
+    </LinearLayout>
 
     <!-- 按钮容器 -->
     <LinearLayout
@@ -59,29 +84,36 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent">
 
-        <!-- 登录按钮 -->
+        <!-- 登录按钮：绿色毛玻璃效果 -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnLogin"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            style="@style/Widget.MaterialComponents.Button"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginEnd="16dp"
+            android:layout_height="50dp"
+            android:layout_marginEnd="12dp"
             android:layout_weight="1"
             android:text="@string/welcome_login"
             android:textColor="@android:color/white"
-            app:strokeColor="@android:color/white"
-            app:strokeWidth="2dp" />
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:background="@drawable/bg_button_glass_green"
+            app:backgroundTint="@null"
+            app:cornerRadius="28dp" />
 
-        <!-- 注册按钮 -->
+        <!-- 注册按钮：绿色毛玻璃效果 -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnRegister"
             style="@style/Widget.MaterialComponents.Button"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
+            android:layout_height="50dp"
             android:layout_weight="1"
-            android:backgroundTint="@android:color/white"
             android:text="@string/welcome_register"
-            android:textColor="#6200EE" />
+            android:textColor="@android:color/white"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:background="@drawable/bg_button_glass_green"
+            app:backgroundTint="@null"
+            app:cornerRadius="28dp" />
     </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

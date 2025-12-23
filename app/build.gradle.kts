@@ -61,8 +61,9 @@ android {
 dependencies {
     coreLibraryDesugaring(libs.desugar)
 
-    // AMap (Gaode) SDKs
-    implementation(libs.amap3d)
+    // AMap (Gaode) SDKs - 全部走本地 JAR，一体化包含 3D 地图 + 搜索 + 定位
+    // JAR 位于 app/libs/AMap3DMap_AMapSearch_AMapLocation 目录下，这里递归包含子目录
+    implementation(fileTree(mapOf("dir" to "libs", "include" to listOf("**/*.jar", "**/*.aar"))))
 
     // ZXing QR scanning
     implementation(libs.zxing)
@@ -75,8 +76,12 @@ dependencies {
     implementation(libs.retrofit.gson)
     implementation(libs.okhttp.logging)
 
+    // 图片加载（Glide）
+    implementation("com.github.bumptech.glide:glide:4.16.0")
+
     implementation(libs.appcompat)
     implementation(libs.material)
+    implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
     testImplementation(libs.junit)
     testImplementation(libs.mockito.core)
 

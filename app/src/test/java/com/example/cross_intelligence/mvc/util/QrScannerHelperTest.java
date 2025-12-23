@@ -35,3 +35,11 @@ public class QrScannerHelperTest {
 
 
 
+
+
+
+
+
+
+
+

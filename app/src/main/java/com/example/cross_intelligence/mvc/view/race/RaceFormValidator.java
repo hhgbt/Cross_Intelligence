@@ -24,6 +24,14 @@ final class RaceFormValidator {
                                      String startTime,
                                      String endTime,
                                      List<CheckPoint> points) {
+        return validate(raceName, startTime, endTime, points, false);
+    }
+    
+    static ValidationResult validate(String raceName,
+                                     String startTime,
+                                     String endTime,
+                                     List<CheckPoint> points,
+                                     boolean isEditMode) {
         if (TextUtils.isEmpty(raceName)) {
             return ValidationResult.error("请输入赛事名称");
         }
@@ -43,6 +51,15 @@ final class RaceFormValidator {
         if (start == null || end == null || !end.after(start)) {
             return ValidationResult.error("结束时间必须晚于开始时间");
         }
+        
+        // 验证开始时间不能早于当前时间（仅在创建时验证，编辑时允许修改历史赛事）
+        if (!isEditMode) {
+            Date now = new Date();
+            if (start.before(now)) {
+                return ValidationResult.error("开始时间不能早于当前时间");
+            }
+        }
+        
         if (points == null || points.size() < 2) {
             return ValidationResult.error("请至少添加两个打卡点");
         }

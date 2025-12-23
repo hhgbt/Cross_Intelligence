@@ -2,13 +2,8 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
-
-    <!-- 背景渐变遮罩 -->
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="@drawable/bg_login_overlay" />
+    android:layout_height="match_parent"
+    android:background="#FFFFFF">
 
     <!-- 主内容区域 -->
     <ScrollView
@@ -21,156 +16,129 @@
             android:layout_height="wrap_content"
             android:padding="32dp">
 
-            <!-- Logo -->
-            <ImageView
-                android:id="@+id/ivLogo"
-                android:layout_width="96dp"
-                android:layout_height="96dp"
-                android:layout_marginTop="48dp"
-                android:contentDescription="@string/app_name"
-                android:src="@mipmap/ic_launcher"
+            <!-- 品牌标题：注册账号 -->
+            <TextView
+                android:id="@+id/tvBrandTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="80dp"
+                android:text="注册账号"
+                android:textColor="#212121"
+                android:textSize="28sp"
+                android:textStyle="bold"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent" />
-
-            <!-- 欢迎标题 -->
-            <TextView
-                android:id="@+id/tvWelcome"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="24dp"
-                android:text="注册账号"
-                android:textAppearance="?attr/textAppearanceHeadline5"
-                android:textColor="@color/white"
-                android:textStyle="bold"
-                android:shadowColor="#80000000"
-                android:shadowDx="0"
-                android:shadowDy="2"
-                android:shadowRadius="4"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/ivLogo" />
-
-            <!-- 副标题 -->
-            <TextView
-                android:id="@+id/tvSubtitle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:text="Join Cross Intelligence Racing"
-                android:textAppearance="?attr/textAppearanceCaption"
-                android:textColor="#E0FFFFFF"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/tvWelcome" />
 
             <!-- 表单容器 -->
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:id="@+id/cardForm"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="48dp"
+                android:layout_marginTop="64dp"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/tvSubtitle">
+                app:layout_constraintTop_toBottomOf="@id/tvBrandTitle">
 
-                    <!-- 账号输入框 -->
-                    <com.google.android.material.textfield.TextInputLayout
-                        android:id="@+id/tilRegisterAccount"
-                        style="@style/LoginInputStyle"
-                        android:layout_width="0dp"
+                <!-- 账号输入框 -->
+                <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/tilRegisterAccount"
+                    style="@style/LoginInputStyle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:hint="@string/register_account_hint"
+                    app:startIconDrawable="@drawable/ic_person"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/etRegisterAccount"
+                        style="@style/LoginEditTextStyle"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:hint="@string/register_account_hint"
-                        app:layout_constraintEnd_toEndOf="parent"
-                        app:layout_constraintStart_toStartOf="parent"
-                        app:layout_constraintTop_toTopOf="parent">
+                        android:inputType="text" />
+                </com.google.android.material.textfield.TextInputLayout>
 
-                        <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/etRegisterAccount"
-                            style="@style/LoginEditTextStyle"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:inputType="text" />
-                    </com.google.android.material.textfield.TextInputLayout>
+                <!-- 密码输入框 -->
+                <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/tilRegisterPassword"
+                    style="@style/LoginInputStyle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:hint="@string/register_password_hint"
+                    app:startIconDrawable="@drawable/ic_lock"
+                    app:endIconMode="custom"
+                    app:endIconDrawable="@drawable/ic_visibility_off"
+                    app:endIconTint="@color/input_icon"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@id/tilRegisterAccount">
 
-                    <!-- 密码输入框 -->
-                    <com.google.android.material.textfield.TextInputLayout
-                        android:id="@+id/tilRegisterPassword"
-                        style="@style/LoginInputStyle"
-                        android:layout_width="0dp"
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/etRegisterPassword"
+                        style="@style/LoginEditTextStyle"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="16dp"
-                        android:hint="@string/register_password_hint"
-                        app:endIconMode="password_toggle"
-                        app:endIconTint="@color/white"
-                        app:layout_constraintEnd_toEndOf="parent"
-                        app:layout_constraintStart_toStartOf="parent"
-                        app:layout_constraintTop_toBottomOf="@id/tilRegisterAccount">
+                        android:inputType="textPassword" />
+                </com.google.android.material.textfield.TextInputLayout>
 
-                        <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/etRegisterPassword"
-                            style="@style/LoginEditTextStyle"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:inputType="textPassword" />
-                    </com.google.android.material.textfield.TextInputLayout>
+                <!-- 角色选择：Exposed Dropdown Menu -->
+                <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/tilRegisterRole"
+                    style="@style/LoginDropdownStyle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:hint="@string/register_role_hint"
+                    app:endIconMode="dropdown_menu"
+                    app:endIconDrawable="@drawable/ic_arrow_drop_down"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@id/tilRegisterPassword">
 
-                    <!-- 角色选择 -->
-                    <com.google.android.material.textfield.TextInputLayout
-                        android:id="@+id/tilRegisterRole"
-                        style="@style/LoginInputStyle"
-                        android:layout_width="0dp"
+                    <com.google.android.material.textfield.MaterialAutoCompleteTextView
+                        android:id="@+id/actRegisterRole"
+                        style="@style/LoginDropdownEditTextStyle"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="16dp"
-                        android:hint="@string/register_role_hint"
-                        app:layout_constraintEnd_toEndOf="parent"
-                        app:layout_constraintStart_toStartOf="parent"
-                        app:layout_constraintTop_toBottomOf="@id/tilRegisterPassword">
+                        android:inputType="none"
+                        android:dropDownHeight="wrap_content"
+                        android:dropDownVerticalOffset="4dp"
+                        android:popupBackground="@drawable/bg_dropdown_popup" />
+                </com.google.android.material.textfield.TextInputLayout>
 
-                        <AutoCompleteTextView
-                            android:id="@+id/actRegisterRole"
-                            style="@style/LoginEditTextStyle"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:cursorVisible="false"
-                            android:dropDownHeight="wrap_content"
-                            android:editable="false"
-                            android:focusable="true"
-                            android:focusableInTouchMode="false"
-                            android:inputType="none"
-                            android:paddingEnd="12dp"
-                            android:popupTheme="@style/ThemeOverlay.MaterialComponents.MaterialAlertDialog" />
-                    </com.google.android.material.textfield.TextInputLayout>
+                <!-- 注册按钮 -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnRegister"
+                    android:layout_width="0dp"
+                    android:layout_height="60dp"
+                    android:layout_marginTop="46dp"
+                    android:text="@string/welcome_register"
+                    android:textColor="@color/white"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:elevation="2dp"
+                    app:backgroundTint="@color/forest_green"
+                    app:cornerRadius="10dp"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@id/tilRegisterRole" />
 
-                    <!-- 注册按钮 -->
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnRegister"
-                        android:layout_width="0dp"
-                        android:layout_height="64dp"
-                        android:layout_marginTop="32dp"
-                        android:background="@drawable/bg_button_gradient"
-                        android:elevation="4dp"
-                        android:text="@string/welcome_register"
-                        android:textColor="@color/white"
-                        android:textSize="18sp"
-                        android:textStyle="bold"
-                        app:backgroundTint="@null"
-                        app:layout_constraintEnd_toEndOf="parent"
-                        app:layout_constraintStart_toStartOf="parent"
-                        app:layout_constraintTop_toBottomOf="@id/tilRegisterRole" />
-
-                    <!-- 返回登录 -->
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnBackToLogin"
-                        style="@style/Widget.MaterialComponents.Button.TextButton"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
-                        android:text="已有账号？返回登录"
-                        android:textColor="@color/white"
-                        app:layout_constraintEnd_toEndOf="parent"
-                        app:layout_constraintStart_toStartOf="parent"
-                        app:layout_constraintTop_toBottomOf="@id/btnRegister" />
+                <!-- 返回登录按钮：文字按钮 -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnBackToLogin"
+                    style="@style/Widget.MaterialComponents.Button.TextButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:text="已有账号？返回登录"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="14sp"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@id/btnRegister" />
 
             </androidx.constraintlayout.widget.ConstraintLayout>
 
@@ -181,25 +149,10 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="24dp"
                 android:visibility="gone"
-                android:indeterminateTint="@color/white"
+                android:indeterminateTint="@color/forest_green"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toBottomOf="@id/cardForm" />
-
-            <!-- 底部装饰文字 -->
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="32dp"
-                android:layout_marginBottom="24dp"
-                android:text="Powered by Cross Intelligence"
-                android:textAppearance="?attr/textAppearanceCaption"
-                android:textColor="#80FFFFFF"
-                app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toStartOf="parent"
-                app:layout_constraintTop_toBottomOf="@id/progressBar"
-                app:layout_constraintVertical_bias="1.0" />
 
         </androidx.constraintlayout.widget.ConstraintLayout>
 

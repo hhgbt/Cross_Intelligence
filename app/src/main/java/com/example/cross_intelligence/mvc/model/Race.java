@@ -20,6 +20,7 @@ public class Race extends RealmObject {
     private String organizerId;
     private Date createTime; // 创建时间
     private int sequenceNumber; // 序号：按创建顺序编号，从1开始
+    private String thumbnailPath; // 轨迹缩略图路径
 
     public String getRaceId() {
         return raceId;
@@ -91,6 +92,14 @@ public class Race extends RealmObject {
 
     public void setSequenceNumber(int sequenceNumber) {
         this.sequenceNumber = sequenceNumber;
+    }
+
+    public String getThumbnailPath() {
+        return thumbnailPath;
+    }
+
+    public void setThumbnailPath(String thumbnailPath) {
+        this.thumbnailPath = thumbnailPath;
     }
 }
 

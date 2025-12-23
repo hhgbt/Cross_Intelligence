@@ -10,12 +10,14 @@ import com.example.cross_intelligence.mvc.util.DistanceUtil;
 import com.example.cross_intelligence.mvc.util.QrPayloadParser;
 
 import java.util.Date;
+import java.util.List;
 import java.util.UUID;
 
 import io.realm.Realm;
+import io.realm.RealmResults;
 
 /**
- * 打卡管理器：负责 GPS + QR 双重验证、离线记录、状态查询。
+ * 打卡管理器：负责 GPS + QR 双重验证、状态查询。
  * 
  * 打卡流程：
  * 1. 地理围栏判断：使用 DistanceUtil 计算距离，超出打卡半径则禁止打卡
@@ -93,7 +95,6 @@ public class CheckInManager {
      * @param currentLat 当前纬度
      * @param currentLng 当前经度
      * @param scannedQr  扫描的二维码内容
-     * @param isOffline  是否离线模式
      * @param callback   回调
      */
     public void checkIn(@NonNull String raceId,
@@ -102,7 +103,6 @@ public class CheckInManager {
                         double currentLat,
                         double currentLng,
                         @NonNull String scannedQr,
-                        boolean isOffline,
                         @NonNull CheckInCallback callback) {
 
         // 1. 地理围栏判断
@@ -156,8 +156,8 @@ public class CheckInManager {
             record.setLatitude(currentLat);
             record.setLongitude(currentLng);
             record.setTimestamp(new Date());
-            record.setOffline(isOffline);
-            record.setSynced(!isOffline);
+            record.setOffline(false);
+            record.setSynced(true);
         }, () -> {
             CheckInRecord stored = realm.where(CheckInRecord.class)
                     .equalTo("raceId", raceId)
@@ -190,7 +190,6 @@ public class CheckInManager {
      * @param currentLat 当前纬度
      * @param currentLng 当前经度
      * @param scannedQr  扫描的二维码内容（终点可为 null）
-     * @param isOffline  是否离线模式
      * @param callback   回调
      */
     public void checkInWithStateMachine(@NonNull String raceId,
@@ -199,7 +198,6 @@ public class CheckInManager {
                                         double currentLat,
                                         double currentLng,
                                         String scannedQr,
-                                        boolean isOffline,
                                         @NonNull StateCheckInCallback callback) {
 
         // 获取或创建会话
@@ -298,8 +296,8 @@ public class CheckInManager {
             record.setLatitude(currentLat);
             record.setLongitude(currentLng);
             record.setTimestamp(new Date());
-            record.setOffline(isOffline);
-            record.setSynced(!isOffline);
+            record.setOffline(false);
+            record.setSynced(true);
 
             // 更新会话状态（在同一事务中）
             RaceSession dbSession = bgRealm.where(RaceSession.class)
@@ -401,7 +399,7 @@ public class CheckInManager {
         }
 
         // 使用状态机打卡
-        checkInWithStateMachine(raceId, userId, checkPoint, currentLat, currentLng, scannedQr, false, callback);
+        checkInWithStateMachine(raceId, userId, checkPoint, currentLat, currentLng, scannedQr, callback);
     }
 
     /**
@@ -433,7 +431,7 @@ public class CheckInManager {
         trackManager.flushAsync(); // 立即将待写入的轨迹点保存到数据库
 
         // 终点打卡（无需二维码）
-        checkInWithStateMachine(raceId, userId, checkPoint, currentLat, currentLng, null, false,
+        checkInWithStateMachine(raceId, userId, checkPoint, currentLat, currentLng, null,
                 new StateCheckInCallback() {
                     @Override
                     public void onSuccess(@NonNull CheckInRecord record,
@@ -492,6 +490,24 @@ public class CheckInManager {
             realm.close();
             callback.onFailure(error);
         });
+    }
+    
+    /**
+     * 查询指定用户在某赛事的所有打卡记录
+     * @param raceId 赛事ID
+     * @param userId 用户ID
+     * @return 打卡记录列表，按时间排序
+     */
+    public List<CheckInRecord> queryCheckInRecords(@NonNull String raceId, @NonNull String userId) {
+        Realm realm = Realm.getDefaultInstance();
+        RealmResults<CheckInRecord> results = realm.where(CheckInRecord.class)
+                .equalTo("raceId", raceId)
+                .equalTo("userId", userId)
+                .sort("timestamp")
+                .findAll();
+        List<CheckInRecord> copy = realm.copyFromRealm(results);
+        realm.close();
+        return copy;
     }
 }
 

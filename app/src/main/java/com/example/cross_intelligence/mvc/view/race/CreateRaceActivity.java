@@ -1,31 +1,51 @@
 package com.example.cross_intelligence.mvc.view.race;
 
+import android.animation.ValueAnimator;
 import android.annotation.SuppressLint;
-import android.app.AlertDialog;
+import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextUtils;
 import android.text.TextWatcher;
+import android.os.Build;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
+import android.view.View;
+import android.view.Window;
+import android.view.WindowInsetsController;
+import android.view.WindowManager;
 import android.view.inputmethod.EditorInfo;
-import android.widget.ArrayAdapter;
-import android.widget.AutoCompleteTextView;
 
+import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.transition.TransitionManager;
+
+import com.google.android.material.appbar.AppBarLayout;
 
 import com.amap.api.maps.AMap;
+import com.amap.api.maps.CameraUpdate;
 import com.amap.api.maps.CameraUpdateFactory;
 import com.amap.api.maps.MapView;
+import android.graphics.Point;
+
+import com.amap.api.maps.model.CameraPosition;
 import com.amap.api.maps.model.LatLng;
 import com.amap.api.maps.model.LatLngBounds;
 import com.amap.api.maps.model.Marker;
 import com.amap.api.maps.model.MarkerOptions;
 import com.amap.api.maps.model.Polyline;
 import com.amap.api.maps.model.PolylineOptions;
+import com.amap.api.services.core.LatLonPoint;
+import com.amap.api.services.help.Inputtips;
+import com.amap.api.services.help.InputtipsQuery;
+import com.amap.api.services.help.Tip;
+import com.amap.api.services.core.AMapException;
+import com.example.cross_intelligence.R;
 import com.example.cross_intelligence.databinding.ActivityCreateRaceBinding;
 import com.example.cross_intelligence.databinding.DialogCheckpointBinding;
 import com.example.cross_intelligence.mvc.base.BaseActivity;
@@ -33,17 +53,25 @@ import com.example.cross_intelligence.mvc.controller.RaceManager;
 import com.example.cross_intelligence.mvc.location.MapLocationManager;
 import com.example.cross_intelligence.mvc.model.CheckPoint;
 import com.example.cross_intelligence.mvc.model.Race;
+import com.example.cross_intelligence.mvc.util.MapThumbnailUtil;
 import com.example.cross_intelligence.mvc.util.PreferenceUtil;
 import com.example.cross_intelligence.mvc.util.QrCodeGenerator;
+import com.example.cross_intelligence.mvc.util.QrCodeUtil;
 import com.example.cross_intelligence.mvc.util.UIUtil;
 import com.example.cross_intelligence.mvc.view.admin.AdminMainActivity;
+import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.TextInputEditText;
+
+import android.graphics.Bitmap;
+import android.widget.ImageView;
+import android.widget.TextView;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -71,13 +99,18 @@ public class CreateRaceActivity extends BaseActivity implements
     private final List<CheckPoint> checkPoints = new ArrayList<>();
     private final List<Marker> markers = new ArrayList<>();
     private CheckpointAdapter adapter;
+    private SearchResultAdapter searchResultAdapter; // 搜索结果适配器
     private Polyline routePolyline; // 路线预览折线
     private final SimpleDateFormat dateTimeFormat =
             new SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.CHINA);
-    private final Map<String, LatLng> presetCities = new HashMap<>();
     private String editingRaceId; // 编辑模式下的赛事ID，为 null 表示创建模式
     private MapLocationManager locationManager; // 定位管理器
     private boolean isFirstLocation = true; // 标记是否首次定位
+    private AppBarLayout appBarLayout; // AppBarLayout 控制器
+    private boolean isAppBarExpanded = true; // AppBarLayout 是否展开
+    private boolean isBasicInfoCollapsed = false; // 基础信息是否已折叠
+    private boolean isFirstMapClickAfterExpand = false; // 地图全屏后是否是第一次点击地图
+
     @Override
     protected int getLayoutId() {
         return 0;
@@ -86,6 +119,30 @@ public class CreateRaceActivity extends BaseActivity implements
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        // 设置状态栏为白色
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            Window window = getWindow();
+            window.clearFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS);
+            window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
+            window.setStatusBarColor(androidx.core.content.ContextCompat.getColor(this, android.R.color.white));
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                View decorView = window.getDecorView();
+                // 使用新的 WindowInsetsController API (Android 11+)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    window.getInsetsController().setSystemBarsAppearance(
+                        WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS,
+                        WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
+                    );
+                } else {
+                    // 兼容旧版本 (Android 6.0 - 10)
+                decorView.setSystemUiVisibility(
+                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE | 
+                    View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+                );
+                }
+            }
+        }
+        
         binding = ActivityCreateRaceBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
         mapView = binding.mapView;
@@ -94,55 +151,136 @@ public class CreateRaceActivity extends BaseActivity implements
         // 检查是否为编辑模式
         editingRaceId = getIntent().getStringExtra("raceId");
         
+        // 设置 Toolbar
+        setSupportActionBar(binding.toolbar);
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+            getSupportActionBar().setDisplayShowHomeEnabled(true);
+            getSupportActionBar().setTitle(editingRaceId != null ? 
+                getString(R.string.edit_race_title) : 
+                getString(R.string.create_race_title));
+        }
+        // 初始化 AppBarLayout
+        appBarLayout = binding.appBarLayout;
+        // 监听 AppBarLayout 的展开/折叠状态（用于返回键逻辑）
+        appBarLayout.addOnOffsetChangedListener((appBarLayout, verticalOffset) -> {
+            isAppBarExpanded = verticalOffset == 0;
+        });
+        
+        
+        // 注册 OnBackPressedCallback（替代已废弃的 onBackPressed）
+        OnBackPressedCallback backPressedCallback = new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                // 如果基础信息已折叠，先展开
+                if (isBasicInfoCollapsed) {
+                    toggleBasicInfo();
+                } else {
+                    // 否则正常返回
+                    finish();
+                }
+            }
+        };
+        getOnBackPressedDispatcher().addCallback(this, backPressedCallback);
+        
+        // Toolbar 返回按钮也使用相同的逻辑
+        binding.toolbar.setNavigationOnClickListener(v -> backPressedCallback.handleOnBackPressed());
+        
         initView();
         initData();
         
+        // 初始化时显示打卡点计数（即使为0也要显示）
+        updateCheckpointCount();
+        binding.cardCheckpoints.setVisibility(android.view.View.VISIBLE);
+        
         // 初始化定位管理器
         locationManager = new MapLocationManager(this, this);
+        
+        // 初始化搜索功能
+        initSearch();
     }
 
     @SuppressLint("ClickableViewAccessibility")
     @Override
     protected void initView() {
+        // 打卡点列表直接显示（无需折叠功能）
+
         adapter = new CheckpointAdapter(checkPoints, position -> {
             removeMarker(position);
             checkPoints.remove(position);
             reindexCheckpoints();
             adapter.notifyItemRemoved(position);
             updateRoutePreview(); // 更新路线预览
+            updateCheckpointCount(); // 更新打卡点数量显示
             autoSaveDraft(); // 自动保存草稿
         });
+        // 设置二维码点击监听器
+        adapter.setOnItemQrClickListener(this::showQrCodeDialog);
         binding.rvCheckpoints.setLayoutManager(new LinearLayoutManager(this));
         binding.rvCheckpoints.setAdapter(adapter);
 
-        binding.btnAddManual.setOnClickListener(v -> showCheckpointDialog(null));
-        binding.btnAutoAdjustTypes.setOnClickListener(v -> {
-            autoAdjustCheckpointTypes();
-            UIUtil.showToast(this, "已自动调整：首点为起点，尾点为终点");
+        // 手动添加打卡点按钮（在打卡点卡片右上角）
+        // 初始状态显示"地图"，点击后切换为"手动添加打卡点"
+        binding.btnManualAddCheckpoint.setOnClickListener(v -> {
+            if (isBasicInfoCollapsed) {
+                // 地图已全屏，显示手动添加打卡点对话框
+                showCheckpointDialog(null);
+            } else {
+                // 地图未全屏，点击后展开地图
+                toggleBasicInfo();
+            }
         });
-        binding.btnSaveRace.setOnClickListener(v -> saveRace());
         
-        // 根据模式设置按钮文本和标题
+        // BottomSheet 中的手动添加打卡点按钮
+        binding.btnManualAddCheckpointBottomSheet.setOnClickListener(v -> {
+            showCheckpointDialog(null);
+        });
+        
+        // 顶部返回按钮（地图全屏时显示）
+        binding.btnBackFromMap.setOnClickListener(v -> {
+            toggleBasicInfo();
+        });
+        
+        // 不再使用 BottomSheet Behavior，改为固定悬浮卡片（参考选手端成绩详情页）
+
+        // 保存按钮（Extended FAB）
+        binding.btnSaveRace.setOnClickListener(v -> {
+            android.util.Log.d("CreateRaceActivity", "保存按钮被点击");
+            saveRace();
+        });
+        
+        // 根据模式设置按钮文本
         if (editingRaceId != null) {
             binding.btnSaveRace.setText("保存修改");
-            if (getSupportActionBar() != null) {
-                getSupportActionBar().setTitle("编辑赛事");
-            }
         }
 
+
+        // 时间选择器：通过图标点击
+        binding.tilStartTime.setStartIconOnClickListener(v -> pickDateTime(binding.etStartTime));
+        binding.tilEndTime.setStartIconOnClickListener(v -> pickDateTime(binding.etEndTime));
+        // 保留EditText点击也支持
         binding.etStartTime.setOnClickListener(v -> pickDateTime(binding.etStartTime));
         binding.etEndTime.setOnClickListener(v -> pickDateTime(binding.etEndTime));
 
-        binding.etSearch.setOnEditorActionListener((v, actionId, event) -> {
-            if (actionId == EditorInfo.IME_ACTION_SEARCH) {
-                performSearch();
-                return true;
-            }
-            return false;
-        });
+        // 初始化 BottomSheet 中的 RecyclerView（使用同一个 adapter）
+        binding.rvCheckpointsBottomSheet.setLayoutManager(new LinearLayoutManager(this));
+        binding.rvCheckpointsBottomSheet.setAdapter(adapter);
+        
+        // 初始按钮文本为"地图"
+        binding.btnManualAddCheckpoint.setText("地图");
+        binding.btnManualAddCheckpoint.setIcon(null);
 
         // 添加文本变化监听，实现自动保存
-        addTextWatcher(binding.etRaceName);
+        binding.etRaceName.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {}
+            @Override
+            public void afterTextChanged(Editable s) {
+                autoSaveDraft();
+            }
+        });
         addTextWatcher(binding.etDescription);
         binding.etStartTime.addTextChangedListener(new TextWatcher() {
             @Override
@@ -169,40 +307,195 @@ public class CreateRaceActivity extends BaseActivity implements
         binding.mapView.setOnTouchListener((v, event) -> {
             if (event.getAction() == MotionEvent.ACTION_DOWN) {
                 v.getParent().requestDisallowInterceptTouchEvent(true);
+                // 点击地图时自动折叠 AppBarLayout，为地图腾出空间
+                if (appBarLayout != null) {
+                    appBarLayout.setExpanded(false, true);
+                }
+                hideKeyboard();
             } else if (event.getAction() == MotionEvent.ACTION_UP) {
                 v.performClick();
             }
             return false;
         });
     }
+    
 
-    private void performSearch() {
-        String keyword = binding.etSearch.getText() != null
-                ? binding.etSearch.getText().toString().trim() : "";
-        if (TextUtils.isEmpty(keyword)) {
-            UIUtil.showToast(this, "请输入要搜索的城市或地点");
-            return;
-        }
-        String lower = keyword.toLowerCase(Locale.CHINA);
-        LatLng target = null;
-        if (presetCities.containsKey(keyword)) {
-            target = presetCities.get(keyword);
-        } else if (presetCities.containsKey(lower)) {
-            target = presetCities.get(lower);
-        } else {
-            for (Map.Entry<String, LatLng> entry : presetCities.entrySet()) {
-                if (keyword.contains(entry.getKey())) {
-                    target = entry.getValue();
-                    break;
-                }
+
+    /**
+     * 隐藏软键盘
+     */
+    private void hideKeyboard() {
+        android.view.View view = getCurrentFocus();
+        if (view != null) {
+            android.view.inputmethod.InputMethodManager imm =
+                    (android.view.inputmethod.InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+            if (imm != null) {
+                imm.hideSoftInputFromWindow(view.getWindowToken(), 0);
             }
         }
-        if (target == null) {
-            UIUtil.showToast(this, "暂不支持该地点搜索，请尝试：昆明/大理/丽江/玉溪/曲靖/保山/昭通/普洱/临沧/楚雄/蒙自/文山/景洪/芒市/泸水/香格里拉");
+    }
+
+    /**
+     * 初始化搜索功能
+     */
+    private void initSearch() {
+        // 初始化搜索结果适配器
+        searchResultAdapter = new SearchResultAdapter();
+        searchResultAdapter.setOnItemClickListener(tip -> {
+            // 点击搜索结果后跳转地图
+            onSearchResultClick(tip);
+        });
+        
+        // 设置搜索结果列表
+        binding.rvSearchResults.setLayoutManager(new LinearLayoutManager(this));
+        binding.rvSearchResults.setAdapter(searchResultAdapter);
+        
+        // 监听搜索输入框文字变化
+        binding.etSearch.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                String content = s.toString().trim();
+                if (content.length() > 0) {
+                    // 执行搜索
+                    performSearch(content);
+                } else {
+                    // 清空搜索结果
+                    hideSearchResults();
+                }
+            }
+            
+            @Override
+            public void afterTextChanged(Editable s) {}
+        });
+        
+        // 搜索框的搜索按钮点击事件
+        binding.etSearch.setOnEditorActionListener((v, actionId, event) -> {
+            if (actionId == EditorInfo.IME_ACTION_SEARCH) {
+                hideKeyboard();
+                return true;
+            }
+            return false;
+        });
+        
+        // 遮罩层不设置点击监听，避免拦截搜索结果卡片的点击事件
+        // 用户可以通过点击地图或其他方式关闭搜索结果
+        // binding.viewSearchOverlay.setOnClickListener(null);
+    }
+
+    /**
+     * 执行搜索：使用高德地图 Inputtips
+     */
+    private void performSearch(String keyword) {
+        try {
+            // 构造查询对象，搜索范围：全中国
+            InputtipsQuery inputtipsQuery = new InputtipsQuery(keyword, "全国");
+            // 设置城市限制（可选，这里不限制，搜索全中国）
+            inputtipsQuery.setCityLimit(false);
+            
+            Inputtips inputtips = new Inputtips(this, inputtipsQuery);
+            
+            // 设置回调监听
+            inputtips.setInputtipsListener(new Inputtips.InputtipsListener() {
+                @Override
+                public void onGetInputtips(List<Tip> tipList, int rCode) {
+                    if (rCode == AMapException.CODE_AMAP_SUCCESS) {
+                        // 搜索成功，更新结果列表
+                        if (tipList != null && !tipList.isEmpty()) {
+                            searchResultAdapter.updateData(tipList);
+                            showSearchResults();
+                        } else {
+                            // 没有搜索结果
+                            searchResultAdapter.clearData();
+                            hideSearchResults();
+                        }
+                    } else {
+                        // 搜索失败
+                        android.util.Log.e("CreateRaceActivity", "搜索失败，错误码: " + rCode);
+                        hideSearchResults();
+                    }
+                }
+            });
+            
+            // 异步请求搜索
+            inputtips.requestInputtipsAsyn();
+        } catch (Exception e) {
+            android.util.Log.e("CreateRaceActivity", "搜索异常", e);
+            hideSearchResults();
+        }
+    }
+
+    /**
+     * 点击搜索结果后的处理：跳转地图（不添加标记）
+     */
+    private void onSearchResultClick(Tip tip) {
+        android.util.Log.d("CreateRaceActivity", "=== onSearchResultClick 被调用 ===");
+        android.util.Log.d("CreateRaceActivity", "点击搜索结果: " + (tip != null ? tip.getName() : "null"));
+        
+        if (tip == null) {
+            android.util.Log.e("CreateRaceActivity", "Tip 为 null");
+            UIUtil.showToast(this, "搜索结果无效");
             return;
         }
-        aMap.animateCamera(CameraUpdateFactory.newLatLngZoom(target, 14f));
+        
+        // 立即隐藏搜索结果，避免与地图点击事件冲突
+        hideSearchResults();
+        
+        // 检查是否有经纬度
+        com.amap.api.services.core.LatLonPoint point = tip.getPoint();
+        android.util.Log.d("CreateRaceActivity", "point 是否为 null: " + (point == null));
+        
+        if (point != null) {
+            double lat = point.getLatitude();
+            double lng = point.getLongitude();
+            android.util.Log.d("CreateRaceActivity", "目标坐标: " + lat + ", " + lng);
+            
+            LatLng targetPos = new LatLng(lat, lng);
+            
+            // 【关键点】只移动镜头，不添加 Marker
+            if (aMap != null) {
+                android.util.Log.d("CreateRaceActivity", "开始跳转地图，aMap 不为 null");
+                // 立即跳转地图，使用 animateCamera 平滑移动
+                // 使用 18f 缩放级别，让地图更精准地显示搜索位置（适合查看具体山头、村落等）
+                aMap.animateCamera(CameraUpdateFactory.newLatLngZoom(targetPos, 18f));
+                
+                // 清空搜索框并隐藏输入法
+                binding.etSearch.setText("");
+                hideKeyboard();
+                
+                // 提示用户：请点击地图设置打卡点（延迟显示，避免与跳转动画冲突）
+                new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                    UIUtil.showToast(CreateRaceActivity.this, "已跳转至：" + tip.getName() + "，请点击地图位置创建打卡点");
+                }, 300);
+            } else {
+                android.util.Log.e("CreateRaceActivity", "aMap 为 null，地图未初始化");
+                UIUtil.showToast(this, "地图未初始化，请稍后再试");
+            }
+        } else {
+            // 没有坐标信息
+            android.util.Log.w("CreateRaceActivity", "Tip 没有坐标信息: " + tip.getName());
+            UIUtil.showToast(this, "该地点没有坐标信息，请尝试搜索其他地点");
+        }
     }
+
+    /**
+     * 显示搜索结果
+     */
+    private void showSearchResults() {
+        binding.cardSearchResults.setVisibility(View.VISIBLE);
+        binding.viewSearchOverlay.setVisibility(View.VISIBLE);
+    }
+
+    /**
+     * 隐藏搜索结果
+     */
+    private void hideSearchResults() {
+        binding.cardSearchResults.setVisibility(View.GONE);
+        binding.viewSearchOverlay.setVisibility(View.GONE);
+    }
+
 
     @Override
     protected void initData() {
@@ -210,80 +503,14 @@ public class CreateRaceActivity extends BaseActivity implements
         if (editingRaceId != null) {
             loadRaceData(editingRaceId);
         } else {
-            // 创建模式：预填充一个示例时间，方便直接调整
+            // 创建模式：默认显示当前日期和时间（开始时间为当前时间，结束时间为当前时间+2小时）
             Calendar calendar = Calendar.getInstance();
-            calendar.set(2025, Calendar.JANUARY, 1, 9, 0);
+            // 开始时间设为当前时间
             binding.etStartTime.setText(dateTimeFormat.format(calendar.getTime()));
-            calendar.set(2025, Calendar.JANUARY, 1, 11, 0);
+            // 结束时间设为当前时间+2小时
+            calendar.add(Calendar.HOUR_OF_DAY, 2);
             binding.etEndTime.setText(dateTimeFormat.format(calendar.getTime()));
         }
-
-        // 初始化云南省内主要城市和区县中心点，用于快速跳转
-        presetCities.clear();
-        // 昆明市
-        presetCities.put("昆明", new LatLng(25.0389, 102.7183));
-        presetCities.put("昆明市", new LatLng(25.0389, 102.7183));
-        presetCities.put("kunming", new LatLng(25.0389, 102.7183));
-        // 大理市
-        presetCities.put("大理", new LatLng(25.6065, 100.2676));
-        presetCities.put("大理市", new LatLng(25.6065, 100.2676));
-        presetCities.put("dali", new LatLng(25.6065, 100.2676));
-        // 丽江市
-        presetCities.put("丽江", new LatLng(26.8550, 100.2277));
-        presetCities.put("丽江市", new LatLng(26.8550, 100.2277));
-        presetCities.put("lijiang", new LatLng(26.8550, 100.2277));
-        // 玉溪市
-        presetCities.put("玉溪", new LatLng(24.3473, 102.5439));
-        presetCities.put("玉溪市", new LatLng(24.3473, 102.5439));
-        presetCities.put("yuxi", new LatLng(24.3473, 102.5439));
-        // 曲靖市
-        presetCities.put("曲靖", new LatLng(25.4899, 103.7962));
-        presetCities.put("曲靖市", new LatLng(25.4899, 103.7962));
-        presetCities.put("qujing", new LatLng(25.4899, 103.7962));
-        // 保山市
-        presetCities.put("保山", new LatLng(25.1118, 99.1618));
-        presetCities.put("保山市", new LatLng(25.1118, 99.1618));
-        presetCities.put("baoshan", new LatLng(25.1118, 99.1618));
-        // 昭通市
-        presetCities.put("昭通", new LatLng(27.3382, 103.7175));
-        presetCities.put("昭通市", new LatLng(27.3382, 103.7175));
-        presetCities.put("zhaotong", new LatLng(27.3382, 103.7175));
-        // 普洱市
-        presetCities.put("普洱", new LatLng(22.7873, 100.9786));
-        presetCities.put("普洱市", new LatLng(22.7873, 100.9786));
-        presetCities.put("puer", new LatLng(22.7873, 100.9786));
-        // 临沧市
-        presetCities.put("临沧", new LatLng(23.8772, 100.0878));
-        presetCities.put("临沧市", new LatLng(23.8772, 100.0878));
-        presetCities.put("lincang", new LatLng(23.8772, 100.0878));
-        // 楚雄市
-        presetCities.put("楚雄", new LatLng(25.0320, 101.5460));
-        presetCities.put("楚雄市", new LatLng(25.0320, 101.5460));
-        presetCities.put("chuxiong", new LatLng(25.0320, 101.5460));
-        // 红河州（蒙自市）
-        presetCities.put("蒙自", new LatLng(23.3631, 103.3849));
-        presetCities.put("蒙自市", new LatLng(23.3631, 103.3849));
-        presetCities.put("mengzi", new LatLng(23.3631, 103.3849));
-        // 文山州（文山市）
-        presetCities.put("文山", new LatLng(23.3690, 104.2443));
-        presetCities.put("文山市", new LatLng(23.3690, 104.2443));
-        presetCities.put("wenshan", new LatLng(23.3690, 104.2443));
-        // 西双版纳（景洪市）
-        presetCities.put("景洪", new LatLng(22.0094, 100.7979));
-        presetCities.put("景洪市", new LatLng(22.0094, 100.7979));
-        presetCities.put("jinghong", new LatLng(22.0094, 100.7979));
-        presetCities.put("西双版纳", new LatLng(22.0094, 100.7979));
-        // 德宏州（芒市）
-        presetCities.put("芒市", new LatLng(24.4337, 98.5856));
-        presetCities.put("mangshi", new LatLng(24.4337, 98.5856));
-        // 怒江州（泸水市）
-        presetCities.put("泸水", new LatLng(25.8516, 98.8543));
-        presetCities.put("泸水市", new LatLng(25.8516, 98.8543));
-        presetCities.put("lushui", new LatLng(25.8516, 98.8543));
-        // 迪庆州（香格里拉市）
-        presetCities.put("香格里拉", new LatLng(27.8297, 99.7026));
-        presetCities.put("香格里拉市", new LatLng(27.8297, 99.7026));
-        presetCities.put("xianggelila", new LatLng(27.8297, 99.7026));
     }
 
     /**
@@ -332,8 +559,9 @@ public class CreateRaceActivity extends BaseActivity implements
             // 按顺序排序
             checkPoints.sort((p1, p2) -> Integer.compare(p1.getOrderIndex(), p2.getOrderIndex()));
             adapter.notifyDataSetChanged();
+            updateCheckpointCount(); // 更新打卡点数量显示
             
-            // 地图标记将在 initMap() 中绘制
+            // 编辑模式下，如果有打卡点，列表会自动显示
         }
     }
 
@@ -351,6 +579,20 @@ public class CreateRaceActivity extends BaseActivity implements
             }
         }
 
+        // 如果是创建模式且选择的是开始时间，设置最小日期为今天
+        boolean isStartTime = target == binding.etStartTime;
+        boolean isCreateMode = editingRaceId == null;
+        long minDate = 0;
+        if (isCreateMode && isStartTime) {
+            // 创建模式下，开始时间不能早于当前时间
+            Calendar minCalendar = Calendar.getInstance();
+            minCalendar.set(Calendar.HOUR_OF_DAY, 0);
+            minCalendar.set(Calendar.MINUTE, 0);
+            minCalendar.set(Calendar.SECOND, 0);
+            minCalendar.set(Calendar.MILLISECOND, 0);
+            minDate = minCalendar.getTimeInMillis();
+        }
+
         android.app.DatePickerDialog datePickerDialog = new android.app.DatePickerDialog(this,
                 (view, year, month, dayOfMonth) -> {
                     calendar.set(Calendar.YEAR, year);
@@ -361,7 +603,64 @@ public class CreateRaceActivity extends BaseActivity implements
                             (timeView, hourOfDay, minute) -> {
                                 calendar.set(Calendar.HOUR_OF_DAY, hourOfDay);
                                 calendar.set(Calendar.MINUTE, minute);
+                                
+                                // 创建模式下，开始时间不能早于当前时间
+                                if (isCreateMode && isStartTime) {
+                                    Calendar now = Calendar.getInstance();
+                                    if (calendar.getTimeInMillis() < now.getTimeInMillis()) {
+                                        UIUtil.showToast(CreateRaceActivity.this, "开始时间不能早于当前时间");
+                                        return;
+                                    }
+                                }
+                                
+                                // 如果是结束时间，需要验证至少比开始时间晚5分钟
+                                if (!isStartTime) {
+                                    String startTimeText = textOf(binding.etStartTime);
+                                    if (!TextUtils.isEmpty(startTimeText)) {
+                                        try {
+                                            Calendar startCalendar = Calendar.getInstance();
+                                            startCalendar.setTime(dateTimeFormat.parse(startTimeText));
+                                            long startMillis = startCalendar.getTimeInMillis();
+                                            long endMillis = calendar.getTimeInMillis();
+                                            long diffMinutes = (endMillis - startMillis) / (1000 * 60);
+                                            
+                                            if (diffMinutes < 5) {
+                                                UIUtil.showToast(CreateRaceActivity.this, "结束时间必须比开始时间晚至少5分钟");
+                                                return;
+                                            }
+                                        } catch (Exception e) {
+                                            // 解析失败，忽略验证
+                                        }
+                                    }
+                                }
+                                
                                 target.setText(dateTimeFormat.format(calendar.getTime()));
+                                
+                                // 如果设置了开始时间，自动调整结束时间（如果结束时间早于开始时间+5分钟）
+                                if (isStartTime) {
+                                    String endTimeText = textOf(binding.etEndTime);
+                                    if (!TextUtils.isEmpty(endTimeText)) {
+                                        try {
+                                            Calendar endCalendar = Calendar.getInstance();
+                                            endCalendar.setTime(dateTimeFormat.parse(endTimeText));
+                                            long startMillis = calendar.getTimeInMillis();
+                                            long endMillis = endCalendar.getTimeInMillis();
+                                            long diffMinutes = (endMillis - startMillis) / (1000 * 60);
+                                            
+                                            if (diffMinutes < 5) {
+                                                // 自动设置为开始时间+5分钟
+                                                Calendar newEndCalendar = (Calendar) calendar.clone();
+                                                newEndCalendar.add(Calendar.MINUTE, 5);
+                                                binding.etEndTime.setText(dateTimeFormat.format(newEndCalendar.getTime()));
+                                            }
+                                        } catch (Exception e) {
+                                            // 解析失败，自动设置为开始时间+5分钟
+                                            Calendar newEndCalendar = (Calendar) calendar.clone();
+                                            newEndCalendar.add(Calendar.MINUTE, 5);
+                                            binding.etEndTime.setText(dateTimeFormat.format(newEndCalendar.getTime()));
+                                        }
+                                    }
+                                }
                             },
                             calendar.get(Calendar.HOUR_OF_DAY),
                             calendar.get(Calendar.MINUTE),
@@ -371,6 +670,12 @@ public class CreateRaceActivity extends BaseActivity implements
                 calendar.get(Calendar.YEAR),
                 calendar.get(Calendar.MONTH),
                 calendar.get(Calendar.DAY_OF_MONTH));
+        
+        // 设置最小日期
+        if (minDate > 0) {
+            datePickerDialog.getDatePicker().setMinDate(minDate);
+        }
+        
         datePickerDialog.show();
     }
 
@@ -381,13 +686,16 @@ public class CreateRaceActivity extends BaseActivity implements
             aMap.moveCamera(CameraUpdateFactory.zoomTo(16f));
             aMap.setOnMapClickListener(this);
             
+            // 初始状态不显示地图提示标签（只有地图放大后才显示）
+            
             // 如果是编辑模式，地图初始化后需要重新加载打卡点（因为地图可能还未准备好）
             if (editingRaceId != null && !checkPoints.isEmpty()) {
                 // 地图已初始化，重新绘制标记和路线
                 for (CheckPoint point : checkPoints) {
                     Marker marker = aMap.addMarker(new MarkerOptions()
                             .position(new LatLng(point.getLatitude(), point.getLongitude()))
-                            .title(point.getName() + (point.getType() != null ? "(" + point.getType() + ")" : "")));
+                            .title(point.getOrderIndex() + ". " + point.getName() + 
+                                   (point.getType() != null ? " (" + point.getType() + ")" : "")));
                     markers.add(marker);
                 }
                 updateRoutePreview();
@@ -400,74 +708,82 @@ public class CreateRaceActivity extends BaseActivity implements
 
     @Override
     public void onMapClick(LatLng latLng) {
-        UIUtil.showToast(this, getString(com.example.cross_intelligence.R.string.map_click_format,
-                latLng.latitude, latLng.longitude));
-        showCheckpointDialog(latLng);
+        // 点击地图时，如果搜索结果显示，先隐藏搜索结果
+        // 注意：搜索结果卡片的点击不应该触发地图点击，因为卡片有更高的 elevation
+        // 这里只处理真正点击地图空白区域的情况
+        if (binding.cardSearchResults.getVisibility() == View.VISIBLE) {
+            hideSearchResults();
+            return; // 隐藏搜索结果后，不继续处理地图点击
+        }
+        
+        if (!isBasicInfoCollapsed) {
+            // 如果基础信息未折叠，先折叠（第一次点击）
+            toggleBasicInfo();
+            // toggleBasicInfo() 内部已经设置了 isFirstMapClickAfterExpand = true，并显示提示标签
+            return; // 第一次点击只放大，不弹出对话框
+        }
+        
+        // 地图已全屏
+        if (isFirstMapClickAfterExpand) {
+            // 这是地图全屏后的第一次点击，只调整视野，不弹出对话框
+            isFirstMapClickAfterExpand = false;
+            if (aMap != null && checkPoints.size() >= 2) {
+                adjustMapToFitAllPoints();
+            } else if (aMap != null) {
+                // 如果没有打卡点，放大到合适的视野
+                aMap.animateCamera(CameraUpdateFactory.zoomTo(15f));
+            }
+        } else {
+            // 第二次及以后的点击，显示点击动效并弹出打卡点设置对话框
+            showClickAnimation(latLng);
+            showCheckpointDialog(latLng);
+        }
+    }
+    
+    /**
+     * 显示点击地图的涟漪动效（波纹扩散效果）
+     * 使用屏幕像素坐标，圆圈大小固定，不随地图缩放变化
+     */
+    private void showClickAnimation(LatLng latLng) {
+        if (aMap == null || latLng == null || binding.rippleView == null) {
+            return;
+        }
+
+        // 使用 Projection 将经纬度转换为屏幕像素坐标
+        Point screenPoint = aMap.getProjection().toScreenLocation(latLng);
+        
+        // 显示涟漪动效
+        binding.rippleView.showRipple(screenPoint.x, screenPoint.y);
+    }
+    
+    /**
+     * 调整地图视野以包含所有打卡点
+     */
+    private void adjustMapToFitAllPoints() {
+        if (checkPoints.isEmpty() || aMap == null) {
+            return;
+        }
+        try {
+            LatLngBounds.Builder boundsBuilder = new LatLngBounds.Builder();
+            for (CheckPoint point : checkPoints) {
+                boundsBuilder.include(new LatLng(point.getLatitude(), point.getLongitude()));
+            }
+            LatLngBounds bounds = boundsBuilder.build();
+            aMap.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, 120));
+        } catch (Exception e) {
+            // 如果边界无效，忽略错误
+        }
     }
 
     private void showCheckpointDialog(@Nullable LatLng latLng) {
-        DialogCheckpointBinding dialogBinding = DialogCheckpointBinding.inflate(LayoutInflater.from(this));
-        if (latLng != null) {
-            dialogBinding.etLatitude.setText(String.valueOf(latLng.latitude));
-            dialogBinding.etLongitude.setText(String.valueOf(latLng.longitude));
-        }
-        
-        // 设置打卡点类型下拉选择
-        ArrayAdapter<String> typeAdapter = new ArrayAdapter<>(this, 
-                android.R.layout.simple_dropdown_item_1line,
-                new String[]{TYPE_START, TYPE_CHECKPOINT, TYPE_END});
-        dialogBinding.actType.setAdapter(typeAdapter);
-        dialogBinding.actType.setOnClickListener(v -> dialogBinding.actType.showDropDown());
-        dialogBinding.actType.setOnFocusChangeListener((v, hasFocus) -> {
-            if (hasFocus) {
-                dialogBinding.actType.showDropDown();
-            }
-        });
+        CheckpointBottomSheetDialogFragment fragment = CheckpointBottomSheetDialogFragment.newInstance(latLng);
         // 智能推荐类型
         String recommendedType = getRecommendedCheckpointType();
-        dialogBinding.actType.setText(recommendedType, false);
-        
-        new AlertDialog.Builder(this)
-                .setTitle("新增打卡点")
-                .setView(dialogBinding.getRoot())
-                .setPositiveButton("确定", (dialog, which) -> {
-                    String name = dialogBinding.etName.getText() != null ? dialogBinding.etName.getText().toString().trim() : "";
-                    String latStr = dialogBinding.etLatitude.getText() != null ? dialogBinding.etLatitude.getText().toString().trim() : "";
-                    String lngStr = dialogBinding.etLongitude.getText() != null ? dialogBinding.etLongitude.getText().toString().trim() : "";
-                    String type = dialogBinding.actType.getText() != null ? dialogBinding.actType.getText().toString().trim() : TYPE_CHECKPOINT;
-                    String radiusStr = dialogBinding.etCheckRadius.getText() != null ? dialogBinding.etCheckRadius.getText().toString().trim() : "";
-                    
-                    if (TextUtils.isEmpty(name)) {
-                        UIUtil.showToast(this, "请输入打卡点名称");
-                        return;
-                    }
-                    if (TextUtils.isEmpty(type) || (!TYPE_START.equals(type) && !TYPE_CHECKPOINT.equals(type) && !TYPE_END.equals(type))) {
-                        UIUtil.showToast(this, "请选择打卡点类型");
-                        return;
-                    }
-                    double radius = DEFAULT_CHECK_RADIUS;
-                    if (!TextUtils.isEmpty(radiusStr)) {
-                        try {
-                            radius = Double.parseDouble(radiusStr);
-                            if (radius <= 0) {
-                                UIUtil.showToast(this, "打卡半径必须大于0");
-                                return;
-                            }
-                        } catch (NumberFormatException e) {
-                            UIUtil.showToast(this, "打卡半径格式错误，使用默认值50米");
-                            radius = DEFAULT_CHECK_RADIUS;
-                        }
-                    }
-                    try {
-                        double lat = Double.parseDouble(latStr);
-                        double lng = Double.parseDouble(lngStr);
-                        addCheckpoint(name, lat, lng, type, radius);
-                    } catch (NumberFormatException e) {
-                        UIUtil.showToast(this, "坐标格式错误");
-                    }
-                })
-                .setNegativeButton("取消", null)
-                .show();
+        fragment.setRecommendedType(recommendedType);
+        fragment.setOnCheckpointConfirmedListener((name, lat, lng, type, radius) -> {
+            addCheckpoint(name, lat, lng, type, radius);
+        });
+        fragment.show(getSupportFragmentManager(), "CheckpointBottomSheet");
     }
 
     private void addCheckpoint(String name, double lat, double lng) {
@@ -519,6 +835,7 @@ public class CreateRaceActivity extends BaseActivity implements
         }
         
         // 起点设置为1，终点设置为最后，检查点按添加顺序插入到终点之前
+        int insertPosition = 0; // 记录插入位置，用于后续滚动
         if (TYPE_START.equals(type)) {
             point.setOrderIndex(1);
             // 将其他点的顺序后移
@@ -527,10 +844,12 @@ public class CreateRaceActivity extends BaseActivity implements
             }
             checkPoints.add(0, point);
             adapter.notifyItemInserted(0);
+            insertPosition = 0;
         } else if (TYPE_END.equals(type)) {
             point.setOrderIndex(checkPoints.size() + 1);
             checkPoints.add(point);
-            adapter.notifyItemInserted(checkPoints.size() - 1);
+            insertPosition = checkPoints.size() - 1;
+            adapter.notifyItemInserted(insertPosition);
         } else {
             // 检查点：计算合适的顺序（在起点之后，终点之前）
             int insertIndex = checkPoints.size();
@@ -547,15 +866,58 @@ public class CreateRaceActivity extends BaseActivity implements
             point.setOrderIndex(insertIndex + 1);
             checkPoints.add(insertIndex, point);
             adapter.notifyItemInserted(insertIndex);
+            insertPosition = insertIndex;
         }
 
+        // 在地图上添加标记，显示序号
         Marker marker = aMap.addMarker(new MarkerOptions()
                 .position(new LatLng(lat, lng))
-                .title(name + "(" + type + ")"));
+                .title(point.getOrderIndex() + ". " + name + " (" + type + ")"));
         markers.add(marker);
         
         updateRoutePreview(); // 更新路线预览
+        updateCheckpointCount(); // 更新打卡点数量显示
         autoSaveDraft(); // 自动保存草稿
+        
+        // 显示添加打卡点成功提示
+        UIUtil.showToast(this, "已成功添加打卡点 " + name);
+        
+        // 延迟滚动，等待 RecyclerView 更新
+        final int finalPosition = insertPosition;
+        binding.rvCheckpoints.post(() -> {
+            if (finalPosition >= 0 && finalPosition < checkPoints.size()) {
+                binding.rvCheckpoints.smoothScrollToPosition(finalPosition);
+            }
+        });
+    }
+    
+    /**
+     * 更新打卡点数量显示
+     */
+    private void updateCheckpointCount() {
+        int count = checkPoints.size();
+        String mainText = "已添加 " + count + " 个打卡点";
+        String hintText = "（点击地图创建）";
+        String fullText = mainText + hintText;
+        
+        // 使用 SpannableString 设置不同样式
+        android.text.SpannableString spannableString = new android.text.SpannableString(fullText);
+        
+        // 设置括号内提示文字的样式：更小字体、更浅颜色
+        int hintStart = mainText.length();
+        int hintEnd = fullText.length();
+        spannableString.setSpan(new android.text.style.ForegroundColorSpan(0xFF999999), hintStart, hintEnd, android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        spannableString.setSpan(new android.text.style.RelativeSizeSpan(0.75f), hintStart, hintEnd, android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        
+        binding.tvCheckpointCount.setText(spannableString);
+        
+        // 同时更新 BottomSheet 中的计数
+        if (binding.tvCheckpointCountBottomSheet != null) {
+            android.text.SpannableString spannableStringBottomSheet = new android.text.SpannableString(fullText);
+            spannableStringBottomSheet.setSpan(new android.text.style.ForegroundColorSpan(0xFF999999), hintStart, hintEnd, android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+            spannableStringBottomSheet.setSpan(new android.text.style.RelativeSizeSpan(0.75f), hintStart, hintEnd, android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+            binding.tvCheckpointCountBottomSheet.setText(spannableStringBottomSheet);
+        }
     }
 
     private boolean isDuplicatePoint(String name, double lat, double lng) {
@@ -681,13 +1043,13 @@ public class CreateRaceActivity extends BaseActivity implements
             boundsBuilder.include(latLng);
         }
 
-        // 绘制路线
+        // 绘制路线：明亮黄色实线，宽度12px，更明显
         if (!routePoints.isEmpty()) {
             routePolyline = aMap.addPolyline(new PolylineOptions()
                     .addAll(routePoints)
-                    .width(6f)
-                    .color(0xFF4CAF50) // 绿色路线
-                    .setDottedLine(false));
+                    .width(12f) // 更粗的线条
+                    .color(ContextCompat.getColor(this, com.example.cross_intelligence.R.color.route_yellow)) // 明亮黄色
+                    .setDottedLine(false)); // 实线样式
             
             // 仅在有足够打卡点且地图未初始化视野时调整地图视野
             // 避免在用户手动缩放时频繁调整视野
@@ -728,17 +1090,24 @@ public class CreateRaceActivity extends BaseActivity implements
     }
 
     private void saveRace() {
+        android.util.Log.d("CreateRaceActivity", "saveRace() 被调用");
+        
         String name = textOf(binding.etRaceName);
         String description = textOf(binding.etDescription);
         String start = textOf(binding.etStartTime);
         String end = textOf(binding.etEndTime);
 
+        android.util.Log.d("CreateRaceActivity", "表单数据 - name: " + name + ", start: " + start + ", end: " + end + ", checkPoints: " + checkPoints.size());
+
         RaceFormValidator.ValidationResult result =
-                RaceFormValidator.validate(name, start, end, checkPoints);
+                RaceFormValidator.validate(name, start, end, checkPoints, editingRaceId != null);
         if (!result.isValid()) {
             String message = result.getMessage();
+            android.util.Log.d("CreateRaceActivity", "表单验证失败: " + message);
             if ("请输入赛事名称".equals(message)) {
                 binding.tilRaceName.setError(message);
+                // 添加左右抖动动画
+                shakeView(binding.tilRaceName);
             } else {
                 binding.tilRaceName.setError(null);
                 UIUtil.showToast(this, message != null ? message : "表单校验失败");
@@ -750,12 +1119,538 @@ public class CreateRaceActivity extends BaseActivity implements
         // 获取当前登录的管理员账号
         String organizerId = PreferenceUtil.getString(this, "account", "");
         if (TextUtils.isEmpty(organizerId)) {
+            android.util.Log.d("CreateRaceActivity", "无法获取管理员账号");
             UIUtil.showToast(this, "无法获取管理员账号信息，请重新登录");
             return;
         }
         
-        // 显示保存中的提示
-        UIUtil.showToast(this, "正在保存...");
+        android.util.Log.d("CreateRaceActivity", "开始保存赛事，organizerId: " + organizerId);
+        
+        // 生成临时 raceId（用于生成缩略图文件名）
+        final String tempRaceId = editingRaceId != null ? editingRaceId : UUID.randomUUID().toString();
+        
+        // 先显示保存提示，提升用户体验
+        UIUtil.showToast(this, "正在保存赛事...");
+        
+        // 自动生成地图缩略图（静默保存）
+        // 使用超时机制，如果截图流程超过5秒，直接保存赛事
+        final boolean[] hasSaved = {false};
+        android.util.Log.d("CreateRaceActivity", "========== 开始保存流程 ==========");
+        android.util.Log.d("CreateRaceActivity", "tempRaceId: " + tempRaceId);
+        android.util.Log.d("CreateRaceActivity", "checkPoints.isEmpty(): " + checkPoints.isEmpty() + ", aMap == null: " + (aMap == null) + ", mapView == null: " + (mapView == null));
+        
+        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+            if (!hasSaved[0]) {
+                android.util.Log.w("CreateRaceActivity", "========== 截图流程超时（5秒），直接保存赛事（thumbnailPath = null）==========");
+                hasSaved[0] = true;
+                saveRaceWithThumbnail(null, name, description, start, end, organizerId, tempRaceId);
+            }
+        }, 5000); // 5秒超时，给地图截图足够的时间
+        
+        if (!checkPoints.isEmpty()) {
+            android.util.Log.d("CreateRaceActivity", "条件满足，开始生成缩略图，打卡点数量: " + checkPoints.size());
+            // 直接使用隐藏 MapView 进行后台截图，不依赖可见地图
+                        captureMapScreenshot(tempRaceId, name, description, start, end, organizerId, hasSaved);
+        } else {
+            android.util.Log.w("CreateRaceActivity", "========== 跳过缩略图生成，直接保存赛事 ==========");
+            android.util.Log.w("CreateRaceActivity", "原因: checkPoints.isEmpty()=" + checkPoints.isEmpty() + ", aMap==null=" + (aMap == null) + ", mapView==null=" + (mapView == null));
+            // 没有打卡点或地图未初始化，直接保存赛事（不包含缩略图）
+            if (!hasSaved[0]) {
+                hasSaved[0] = true;
+                saveRaceWithThumbnail(null, name, description, start, end, organizerId, tempRaceId);
+            }
+        }
+    }
+    
+    /**
+     * 截取地图截图并保存（使用现有的可见 MapView 进行瞬时前台截图）
+     */
+    private void captureMapScreenshot(String raceId, String name, String description, 
+                                      String start, String end, String organizerId, boolean[] hasSaved) {
+        android.util.Log.d("CreateRaceActivity", "========== 开始截图（使用现有 MapView）==========");
+        android.util.Log.d("CreateRaceActivity", "raceId: " + raceId);
+        if (hasSaved[0]) {
+            android.util.Log.w("CreateRaceActivity", "已经保存，跳过截图");
+            return;
+        }
+        
+        // 确保在主线程
+        runOnUiThread(() -> {
+            if (aMap == null || mapView == null) {
+                android.util.Log.w("CreateRaceActivity", "地图未初始化，跳过截图");
+                if (!hasSaved[0]) {
+                    hasSaved[0] = true;
+                    saveRaceWithThumbnail(null, name, description, start, end, organizerId, raceId);
+                }
+                return;
+            }
+            
+            // 保存当前地图容器的可见性状态
+            final boolean wasCollapsed = isBasicInfoCollapsed;
+            final int mapCardVisibility = binding.mapCardContainer.getVisibility();
+            final int mapViewVisibility = binding.mapView.getVisibility();
+            
+            android.util.Log.d("CreateRaceActivity", "保存地图状态 - wasCollapsed: " + wasCollapsed + ", mapCardVisibility: " + mapCardVisibility + ", mapViewVisibility: " + mapViewVisibility);
+            
+            // 1. 确保地图容器和地图可见（即使被 Loading 遮住）
+            binding.mapCardContainer.setVisibility(View.VISIBLE);
+            binding.mapView.setVisibility(View.VISIBLE);
+            
+            // 2. 强制给地图分配尺寸并刷新（确保不是零高度）
+            final android.view.ViewGroup.LayoutParams mapCardParams = binding.mapCardContainer.getLayoutParams();
+            if (mapCardParams.height <= 0) {
+                // 如果高度为0或无效，设置一个固定高度
+                int minHeight = (int) (300 * getResources().getDisplayMetrics().density);
+                mapCardParams.height = minHeight;
+                android.util.Log.d("CreateRaceActivity", "地图容器高度为0，设置为: " + minHeight);
+            }
+            binding.mapCardContainer.setLayoutParams(mapCardParams);
+            binding.mapCardContainer.requestLayout();
+            binding.mapView.requestLayout();
+            
+            // 3. 如果地图在 ScrollView 内，确保滚动到顶部使其可见
+            if (binding.mainContentLayout != null) {
+                // 尝试查找父 ScrollView 或 NestedScrollView
+                android.view.ViewParent parent = binding.mapCardContainer.getParent();
+                while (parent != null) {
+                    if (parent instanceof androidx.core.widget.NestedScrollView) {
+                        android.util.Log.d("CreateRaceActivity", "检测到 NestedScrollView，滚动到顶部");
+                        ((androidx.core.widget.NestedScrollView) parent).scrollTo(0, 0);
+                        break;
+                    } else if (parent instanceof android.widget.ScrollView) {
+                        android.util.Log.d("CreateRaceActivity", "检测到 ScrollView，滚动到顶部");
+                        ((android.widget.ScrollView) parent).scrollTo(0, 0);
+                        break;
+                    }
+                    parent = parent.getParent();
+                }
+            }
+            
+            // 4. 等待布局完成后继续
+            binding.mapView.post(() -> {
+                // 检查地图是否真的可见且有尺寸
+                int mapCardHeight = binding.mapCardContainer.getHeight();
+                int mapViewHeight = binding.mapView.getHeight();
+                boolean isMapShown = binding.mapView.isShown();
+                
+                android.util.Log.d("CreateRaceActivity", "地图状态检查 - mapCardHeight: " + mapCardHeight + 
+                    ", mapViewHeight: " + mapViewHeight + ", isShown: " + isMapShown);
+                
+                if (mapViewHeight <= 0 || !isMapShown) {
+                    android.util.Log.w("CreateRaceActivity", "地图高度为0或不可见，强制设置高度");
+                    // 再次强制设置高度
+                    if (mapCardHeight <= 0) {
+                        android.view.ViewGroup.LayoutParams params = binding.mapCardContainer.getLayoutParams();
+                        params.height = (int) (400 * getResources().getDisplayMetrics().density);
+                        binding.mapCardContainer.setLayoutParams(params);
+                        binding.mapCardContainer.requestLayout();
+                    }
+                    // 再等待一下让布局完成
+                    binding.mapView.postDelayed(() -> {
+                        performScreenshot(raceId, name, description, start, end, organizerId, hasSaved, wasCollapsed, mapCardVisibility, mapViewVisibility);
+                    }, 200);
+                } else {
+                    performScreenshot(raceId, name, description, start, end, organizerId, hasSaved, wasCollapsed, mapCardVisibility, mapViewVisibility);
+                }
+            });
+        });
+    }
+    
+    /**
+     * 执行截图操作
+     */
+    private void performScreenshot(String raceId, String name, String description, 
+                                   String start, String end, String organizerId, boolean[] hasSaved,
+                                   boolean wasCollapsed, int mapCardVisibility, int mapViewVisibility) {
+        // 1. 确保路线已经添加到地图上（如果还没有）
+        if (routePolyline == null && checkPoints.size() >= 2) {
+            android.util.Log.d("CreateRaceActivity", "路线未添加，先添加路线");
+            updateRoutePreview();
+        }
+        
+        // 2. 按顺序排序打卡点
+        List<CheckPoint> sortedPoints = new ArrayList<>(checkPoints);
+        sortedPoints.sort(Comparator.comparingInt(CheckPoint::getOrderIndex));
+        
+        // 3. 计算边界（包含所有打卡点）
+        LatLngBounds.Builder boundsBuilder = new LatLngBounds.Builder();
+        for (CheckPoint cp : sortedPoints) {
+            boundsBuilder.include(new LatLng(cp.getLatitude(), cp.getLongitude()));
+        }
+        LatLngBounds bounds = boundsBuilder.build();
+        
+        android.util.Log.d("CreateRaceActivity", "计算边界完成，打卡点数量: " + sortedPoints.size() + "，开始移动相机");
+        
+        // 4. 确保路线已绘制（重新绘制以确保完整显示）
+        if (checkPoints.size() >= 2) {
+            // 移除旧路线
+            if (routePolyline != null) {
+                routePolyline.remove();
+                routePolyline = null;
+            }
+            
+            // 重新绘制路线，确保使用正确的颜色和宽度
+            List<LatLng> routePoints = new ArrayList<>();
+            for (CheckPoint cp : sortedPoints) {
+                routePoints.add(new LatLng(cp.getLatitude(), cp.getLongitude()));
+            }
+            routePolyline = aMap.addPolyline(new PolylineOptions()
+                    .addAll(routePoints)
+                    .width(12f)
+                    .color(ContextCompat.getColor(this, com.example.cross_intelligence.R.color.route_yellow))
+                    .setDottedLine(false));
+            android.util.Log.d("CreateRaceActivity", "路线已重新绘制，包含 " + routePoints.size() + " 个点");
+        }
+        
+        // 5. 计算合适的 Padding（使用屏幕宽度的百分比，确保100%截全）
+        // 越野赛路线长，需要给地图四周留出足够边距（屏幕宽度的15%），避免打卡点贴在边框上
+        int mapWidth = binding.mapView.getWidth();
+        int mapHeight = binding.mapView.getHeight();
+        int padding = mapWidth > 0 ? (int) (mapWidth * 0.15) : (int) (300 * getResources().getDisplayMetrics().density);
+        
+        // 计算打卡点之间的最大距离，用于日志记录
+        double maxDistance = calculateMaxDistance(sortedPoints);
+        
+        android.util.Log.d("CreateRaceActivity", "地图尺寸: " + mapWidth + "x" + mapHeight + "，最大距离: " + String.format("%.2f", maxDistance) + " 米，使用边距: " + padding + " 像素");
+        
+        // 6. 核心修复：临时解绑 Camera 监听器，避免干扰
+        aMap.setOnCameraChangeListener(null);
+        
+        // 7. 使用 moveCamera（瞬间切换状态），不要用 animateCamera
+        // moveCamera 是同步设置状态，虽然渲染异步，但比动画更易控制
+        CameraUpdate cameraUpdate = CameraUpdateFactory.newLatLngBounds(bounds, padding);
+        aMap.moveCamera(cameraUpdate);
+        
+        android.util.Log.d("CreateRaceActivity", "moveCamera 已调用，等待渲染完成...");
+        
+        // 8. 给长距离路线更多的加载时间（1000ms），确保远距离的瓦片和 Polyline 渲染完成
+        binding.mapView.postDelayed(() -> {
+            // 再次检查地图状态
+            boolean isShown = binding.mapView.isShown();
+            int currentMapHeight = binding.mapView.getHeight();
+            
+            // 记录当前相机位置，用于调试
+            CameraPosition cameraPos = aMap.getCameraPosition();
+            android.util.Log.d("CreateRaceActivity", "准备截图前检查 - isShown: " + isShown + ", mapHeight: " + currentMapHeight);
+            android.util.Log.d("CreateRaceActivity", "当前缩放等级: " + cameraPos.zoom + ", 中心点: " + cameraPos.target.toString());
+            
+            if (!isShown || currentMapHeight <= 0) {
+                android.util.Log.w("CreateRaceActivity", "地图仍然不可见或高度为0，尝试再次延迟");
+                binding.mapView.postDelayed(() -> {
+                    performActualScreenshot(raceId, name, description, start, end, organizerId, hasSaved, wasCollapsed, mapCardVisibility, mapViewVisibility);
+                }, 500);
+            } else {
+                // 再次确认相机位置（可选，防止 moveCamera 没到位）
+                android.util.Log.d("CreateRaceActivity", "正在执行长距离路线截图...");
+                performActualScreenshot(raceId, name, description, start, end, organizerId, hasSaved, wasCollapsed, mapCardVisibility, mapViewVisibility);
+            }
+        }, 1000); // 1000ms 延迟，确保长距离路线的瓦片和轨迹完全渲染
+    }
+    
+    /**
+     * 计算打卡点之间的最大距离（米）
+     */
+    private double calculateMaxDistance(List<CheckPoint> sortedPoints) {
+        if (sortedPoints.size() < 2) {
+            return 0;
+        }
+        
+        double maxDistance = 0;
+        for (int i = 0; i < sortedPoints.size() - 1; i++) {
+            CheckPoint p1 = sortedPoints.get(i);
+            CheckPoint p2 = sortedPoints.get(i + 1);
+            
+            // 使用 Haversine 公式计算两点之间的距离
+            double lat1 = Math.toRadians(p1.getLatitude());
+            double lat2 = Math.toRadians(p2.getLatitude());
+            double lon1 = Math.toRadians(p1.getLongitude());
+            double lon2 = Math.toRadians(p2.getLongitude());
+            
+            double dLat = lat2 - lat1;
+            double dLon = lon2 - lon1;
+            
+            double a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                      Math.cos(lat1) * Math.cos(lat2) *
+                      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            
+            double distance = 6371000 * c; // 地球半径 6371000 米
+            maxDistance = Math.max(maxDistance, distance);
+        }
+        
+        return maxDistance;
+    }
+    
+    /**
+     * 执行实际的截图操作
+     */
+    private void performActualScreenshot(String raceId, String name, String description,
+                                         String start, String end, String organizerId, boolean[] hasSaved,
+                                         boolean wasCollapsed, int mapCardVisibility, int mapViewVisibility) {
+        android.util.Log.d("CreateRaceActivity", "开始调用 getMapScreenShot");
+        
+        aMap.getMapScreenShot(new AMap.OnMapScreenShotListener() {
+            @Override
+            public void onMapScreenShot(Bitmap bitmap) {
+                // 记录截图时的相机状态，用于调试
+                CameraPosition cp = aMap.getCameraPosition();
+                android.util.Log.d("CreateRaceActivity", "========== 地图截图回调触发 ==========");
+                android.util.Log.d("CreateRaceActivity", "截图时缩放等级: " + cp.zoom + ", 中心点: " + cp.target.toString());
+                
+                if (bitmap != null) {
+                    android.util.Log.d("CreateRaceActivity", "截图成功，尺寸: " + bitmap.getWidth() + "x" + bitmap.getHeight());
+                } else {
+                    android.util.Log.e("CreateRaceActivity", "截图返回 Bitmap 为 null");
+                }
+                
+                // 截图完成后，恢复地图的可见性状态（如果原本是收起状态）
+                if (wasCollapsed && binding.mapCardContainer.getVisibility() == View.VISIBLE) {
+                    android.util.Log.d("CreateRaceActivity", "恢复地图收起状态");
+                    binding.mapCardContainer.setVisibility(mapCardVisibility);
+                    binding.mapView.setVisibility(mapViewVisibility);
+                }
+                
+                // 处理图片并最终保存（确保在主线程执行）
+                if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
+                    handleScreenshotResult(bitmap, raceId, name, description, start, end, organizerId, hasSaved);
+                } else {
+                    runOnUiThread(() -> {
+                        handleScreenshotResult(bitmap, raceId, name, description, start, end, organizerId, hasSaved);
+                    });
+                }
+            }
+            
+            @Override
+            public void onMapScreenShot(Bitmap bitmap, int i) {
+                onMapScreenShot(bitmap);
+            }
+        });
+    }
+    
+    
+    /**
+     * 统一处理截图结果
+     */
+    private void handleScreenshotResult(Bitmap bitmap, String raceId, String name, String description, 
+                                        String start, String end, String organizerId, boolean[] hasSaved) {
+                if (hasSaved[0]) {
+            android.util.Log.w("CreateRaceActivity", "已经保存，跳过后续处理");
+            if (bitmap != null && !bitmap.isRecycled()) {
+                bitmap.recycle();
+            }
+                    return;
+                }
+                
+                if (bitmap != null) {
+            // 异步保存缩略图文件
+            android.util.Log.d("CreateRaceActivity", "开始保存缩略图文件...");
+                    new Thread(() -> {
+                        String thumbnailPath = MapThumbnailUtil.saveThumbnailFromBitmap(
+                                CreateRaceActivity.this, raceId, bitmap);
+                android.util.Log.d("CreateRaceActivity", "========== 缩略图文件保存完成 ==========");
+                android.util.Log.d("CreateRaceActivity", "thumbnailPath: " + thumbnailPath);
+                
+                // 验证文件是否存在
+                if (thumbnailPath != null) {
+                    java.io.File file = new java.io.File(thumbnailPath);
+                    android.util.Log.d("CreateRaceActivity", "文件验证 - 存在: " + file.exists() + ", 可读: " + file.canRead() + ", 大小: " + (file.exists() ? file.length() : 0) + " 字节");
+                }
+                
+                        // 保存完成后切换到主线程继续保存赛事（Realm 操作需要在主线程）
+                        if (!hasSaved[0]) {
+                            hasSaved[0] = true;
+                    android.util.Log.d("CreateRaceActivity", "切换到主线程调用 saveRaceWithThumbnail，thumbnailPath: " + thumbnailPath);
+                            final String finalThumbnailPath = thumbnailPath;
+                            new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+                                android.util.Log.d("CreateRaceActivity", "已在主线程，调用 saveRaceWithThumbnail");
+                                saveRaceWithThumbnail(finalThumbnailPath, name, description, start, end, 
+                                        organizerId, raceId);
+                            });
+                } else {
+                    android.util.Log.w("CreateRaceActivity", "已经保存过，跳过 saveRaceWithThumbnail");
+                        }
+                    }).start();
+                } else {
+            android.util.Log.w("CreateRaceActivity", "========== 截图失败（bitmap 为 null），继续保存赛事（thumbnailPath = null）==========");
+                    // 截图失败，继续保存赛事（不包含缩略图）
+                    if (!hasSaved[0]) {
+                        hasSaved[0] = true;
+                        // 确保在主线程执行 Realm 操作
+                        new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+                            android.util.Log.d("CreateRaceActivity", "已在主线程（bitmap为null），调用 saveRaceWithThumbnail");
+                            saveRaceWithThumbnail(null, name, description, start, end, 
+                                    organizerId, raceId);
+                        });
+                    }
+                }
+            }
+            
+    /**
+     * 备用方案：直接对 MapView 进行 View 截图
+     */
+    private Bitmap captureMapViewAsBitmap() {
+        try {
+            android.util.Log.d("CreateRaceActivity", "使用备用方案：View 截图");
+            if (mapView == null) {
+                android.util.Log.w("CreateRaceActivity", "mapView 为 null");
+                return null;
+            }
+            
+            int width = mapView.getWidth();
+            int height = mapView.getHeight();
+            android.util.Log.d("CreateRaceActivity", "MapView 原始尺寸: " + width + "x" + height);
+            
+            // 如果尺寸无效，使用固定尺寸
+            if (width <= 0 || height <= 0) {
+                android.util.Log.w("CreateRaceActivity", "MapView 尺寸无效: " + width + "x" + height + "，使用固定尺寸 800x600");
+                width = 800;
+                height = 600;
+            }
+            
+            android.util.Log.d("CreateRaceActivity", "准备创建 Bitmap，尺寸: " + width + "x" + height);
+            Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+            if (bitmap == null) {
+                android.util.Log.e("CreateRaceActivity", "创建 Bitmap 失败");
+                return null;
+            }
+            
+            android.util.Log.d("CreateRaceActivity", "Bitmap 创建成功，开始绘制");
+            android.graphics.Canvas canvas = new android.graphics.Canvas(bitmap);
+            
+            // 如果 MapView 尺寸为 0，需要先设置一个临时尺寸进行绘制
+            if (mapView.getWidth() <= 0 || mapView.getHeight() <= 0) {
+                android.util.Log.d("CreateRaceActivity", "MapView 尺寸为 0，使用固定尺寸进行绘制");
+                // 保存原始布局参数
+                int oldLeft = mapView.getLeft();
+                int oldTop = mapView.getTop();
+                int oldRight = mapView.getRight();
+                int oldBottom = mapView.getBottom();
+                
+                // 临时设置尺寸
+                mapView.layout(0, 0, width, height);
+                mapView.draw(canvas);
+                
+                // 恢复原始布局（虽然可能也是 0，但保持一致性）
+                mapView.layout(oldLeft, oldTop, oldRight, oldBottom);
+            } else {
+                mapView.draw(canvas);
+            }
+            
+            android.util.Log.d("CreateRaceActivity", "View 截图成功，尺寸: " + bitmap.getWidth() + "x" + bitmap.getHeight());
+            return bitmap;
+        } catch (Exception e) {
+            android.util.Log.e("CreateRaceActivity", "View 截图失败", e);
+            e.printStackTrace();
+            return null;
+        }
+    }
+    
+    /**
+     * 调整地图视野以包含所有打卡点
+     */
+    private void adjustMapViewToFitCheckpoints(Runnable onComplete) {
+        android.util.Log.d("CreateRaceActivity", "adjustMapViewToFitCheckpoints() 被调用");
+        
+        if (checkPoints.isEmpty() || aMap == null) {
+            android.util.Log.d("CreateRaceActivity", "打卡点为空或地图未初始化，直接执行回调");
+            if (onComplete != null) {
+                onComplete.run();
+            }
+            return;
+        }
+        
+        // 构建包含所有打卡点的边界
+        LatLngBounds.Builder boundsBuilder = new LatLngBounds.Builder();
+        for (CheckPoint point : checkPoints) {
+            boundsBuilder.include(new LatLng(point.getLatitude(), point.getLongitude()));
+        }
+        LatLngBounds bounds = boundsBuilder.build();
+        
+        android.util.Log.d("CreateRaceActivity", "开始调整地图视野");
+        // 调整视野，添加边距
+        CameraUpdate cameraUpdate = CameraUpdateFactory.newLatLngBounds(bounds, 100);
+        aMap.moveCamera(cameraUpdate);
+        
+        // 等待地图移动完成（使用延迟作为备用方案）
+        final boolean[] hasCalled = {false};
+        aMap.setOnCameraChangeListener(new AMap.OnCameraChangeListener() {
+            @Override
+            public void onCameraChange(CameraPosition cameraPosition) {
+                // 相机正在移动
+            }
+            
+            @Override
+            public void onCameraChangeFinish(CameraPosition cameraPosition) {
+                android.util.Log.d("CreateRaceActivity", "onCameraChangeFinish 触发");
+                // 相机移动完成，移除监听器
+                aMap.setOnCameraChangeListener(null);
+                if (!hasCalled[0] && onComplete != null) {
+                    hasCalled[0] = true;
+                    onComplete.run();
+                }
+            }
+        });
+        
+        // 备用方案：如果相机回调不触发，延迟执行
+        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+            android.util.Log.d("CreateRaceActivity", "延迟回调触发，hasCalled: " + hasCalled[0]);
+            if (!hasCalled[0] && onComplete != null) {
+                hasCalled[0] = true;
+                aMap.setOnCameraChangeListener(null); // 清理监听器
+                onComplete.run();
+            }
+        }, 300); // 延迟300ms作为备用方案（缩短响应时间）
+    }
+    
+    /**
+     * 保存赛事（包含缩略图路径）
+     */
+    private void saveRaceWithThumbnail(String thumbnailPath, String name, String description, 
+                                       String start, String end, String organizerId, String raceId) {
+        android.util.Log.d("CreateRaceActivity", "========== saveRaceWithThumbnail() 被调用 ==========");
+        android.util.Log.d("CreateRaceActivity", "raceId: " + raceId);
+        android.util.Log.d("CreateRaceActivity", "thumbnailPath: " + thumbnailPath);
+        android.util.Log.d("CreateRaceActivity", "name: " + name);
+        
+        // 解析时间
+        Date startDate = null;
+        Date endDate = null;
+        try {
+            if (!TextUtils.isEmpty(start)) {
+                startDate = dateTimeFormat.parse(start);
+            }
+            if (!TextUtils.isEmpty(end)) {
+                endDate = dateTimeFormat.parse(end);
+            }
+        } catch (Exception e) {
+            android.util.Log.e("CreateRaceActivity", "时间解析失败", e);
+            runOnUiThread(() -> UIUtil.showToast(this, "时间格式错误"));
+            return;
+        }
+        
+        android.util.Log.d("CreateRaceActivity", "时间解析完成，startDate: " + startDate + ", endDate: " + endDate);
+        
+        // 提取 CheckPoint 数据
+        List<RaceManager.CheckPointData> checkpointDataList = new ArrayList<>();
+        for (CheckPoint point : checkPoints) {
+            RaceManager.CheckPointData data = new RaceManager.CheckPointData();
+            data.checkPointId = point.getCheckPointId();
+            data.name = point.getName();
+            data.latitude = point.getLatitude();
+            data.longitude = point.getLongitude();
+            data.type = point.getType();
+            data.checkRadius = point.getCheckRadius();
+            data.orderIndex = point.getOrderIndex();
+            
+            // 生成二维码 payload（如果还没有的话）
+            if (point.getQrCodePayload() == null || point.getQrCodePayload().isEmpty()) {
+                data.qrCodePayload = QrCodeGenerator.generateCheckPointPayload(raceId, point.getCheckPointId());
+            } else {
+                data.qrCodePayload = point.getQrCodePayload();
+            }
+            
+            checkpointDataList.add(data);
+        }
         
         // 保存或更新赛事（使用异步回调）
         RaceManager.SaveCallback callback = new RaceManager.SaveCallback() {
@@ -765,20 +1660,18 @@ public class CreateRaceActivity extends BaseActivity implements
                 runOnUiThread(() -> {
                     clearDraft(); // 清除草稿
                     
-                    // 显示成功弹窗
+                    // 显示成功提示
                     String message = editingRaceId != null ? "赛事更新成功！" : "赛事保存成功！";
-                    new AlertDialog.Builder(CreateRaceActivity.this)
-                            .setTitle("保存成功")
-                            .setMessage(message)
-                            .setPositiveButton("确定", (dialog, which) -> {
-                                // 返回管理员主页
-                                Intent intent = new Intent(CreateRaceActivity.this, AdminMainActivity.class);
-                                intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
-                                startActivity(intent);
-                                finish();
-                            })
-                            .setCancelable(false)
-                            .show();
+                    UIUtil.showToast(CreateRaceActivity.this, message);
+                    
+                    // 延迟跳转，让用户看到提示信息
+                    new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                        // 返回管理员主页
+                        Intent intent = new Intent(CreateRaceActivity.this, AdminMainActivity.class);
+                        intent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+                        startActivity(intent);
+                        finish();
+                    }, 1000); // 延迟1秒，让用户看到Toast提示
                 });
             }
 
@@ -795,45 +1688,100 @@ public class CreateRaceActivity extends BaseActivity implements
                 });
             }
         };
-
-        // 提取 CheckPoint 数据（在 UI 线程提取所有属性，避免传递 Realm 对象引用）
-        List<RaceManager.CheckPointData> checkpointDataList = new ArrayList<>();
         
-        // 如果是创建模式，需要先生成临时 raceId 用于生成二维码 payload
-        String tempRaceId = editingRaceId != null ? editingRaceId : UUID.randomUUID().toString();
-        
-        for (CheckPoint point : checkPoints) {
-            RaceManager.CheckPointData data = new RaceManager.CheckPointData();
-            data.checkPointId = point.getCheckPointId();
-            data.name = point.getName();
-            data.latitude = point.getLatitude();
-            data.longitude = point.getLongitude();
-            data.type = point.getType();
-            data.checkRadius = point.getCheckRadius();
-            data.orderIndex = point.getOrderIndex();
-            
-            // 生成二维码 payload（如果还没有的话）
-            if (point.getQrCodePayload() == null || point.getQrCodePayload().isEmpty()) {
-                data.qrCodePayload = QrCodeGenerator.generateCheckPointPayload(tempRaceId, point.getCheckPointId());
-            } else {
-                data.qrCodePayload = point.getQrCodePayload();
-            }
-            
-            checkpointDataList.add(data);
-        }
+        android.util.Log.d("CreateRaceActivity", "准备调用 RaceManager，editingRaceId: " + editingRaceId);
+        android.util.Log.d("CreateRaceActivity", "传递给 RaceManager 的 thumbnailPath: " + thumbnailPath);
         
         if (editingRaceId != null) {
             // 编辑模式：更新现有赛事
-            raceManager.updateRace(editingRaceId, name, description, result.getStart(), result.getEnd(), checkpointDataList, callback);
+            android.util.Log.d("CreateRaceActivity", "调用 updateRace()");
+            raceManager.updateRace(editingRaceId, name, description, startDate, endDate, 
+                    checkpointDataList, thumbnailPath, callback);
         } else {
-            // 创建模式：使用临时生成的 raceId 创建新赛事
-            raceManager.createRaceWithId(tempRaceId, name, description, result.getStart(), result.getEnd(), checkpointDataList, organizerId, callback);
+            // 创建模式：使用指定的 raceId 创建新赛事
+            android.util.Log.d("CreateRaceActivity", "调用 createRaceWithId()");
+            raceManager.createRaceWithId(raceId, name, description, startDate, endDate, 
+                    checkpointDataList, organizerId, thumbnailPath, callback);
         }
+        android.util.Log.d("CreateRaceActivity", "========== saveRaceWithThumbnail() 调用完成 ==========");
     }
 
     private void reindexCheckpoints() {
         for (int i = 0; i < checkPoints.size(); i++) {
             checkPoints.get(i).setOrderIndex(i + 1);
+        }
+    }
+
+    /**
+     * 显示打卡点二维码对话框
+     */
+    private void showQrCodeDialog(CheckPoint checkPoint) {
+        // 获取 raceId：编辑模式使用 editingRaceId，创建模式使用临时 raceId
+        String raceId = editingRaceId != null ? editingRaceId : 
+            (checkPoint.getRaceId() != null ? checkPoint.getRaceId() : 
+            java.util.UUID.randomUUID().toString());
+        
+        // 如果打卡点还没有 raceId，设置它
+        if (checkPoint.getRaceId() == null || checkPoint.getRaceId().isEmpty()) {
+            checkPoint.setRaceId(raceId);
+        }
+        
+        // 生成二维码
+        Bitmap qrBitmap = QrCodeGenerator.generateCheckPointQrCode(
+                raceId,
+                checkPoint.getCheckPointId()
+        );
+
+        if (qrBitmap == null) {
+            UIUtil.showToast(this, "生成二维码失败");
+            return;
+        }
+
+        // 创建对话框
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_qr_code, null);
+        builder.setView(dialogView);
+
+        // 设置打卡点名称
+        TextView tvCheckPointName = dialogView.findViewById(R.id.tvCheckPointName);
+        tvCheckPointName.setText(checkPoint.getName());
+
+        // 显示二维码
+        ImageView ivQrCode = dialogView.findViewById(R.id.ivQrCode);
+        ivQrCode.setImageBitmap(qrBitmap);
+
+        AlertDialog dialog = builder.create();
+
+        // 保存按钮
+        MaterialButton btnSaveQr = dialogView.findViewById(R.id.btnSaveQr);
+        btnSaveQr.setOnClickListener(v -> {
+            saveQrCode(qrBitmap, checkPoint.getName());
+        });
+
+        // 分享按钮
+        MaterialButton btnShareQr = dialogView.findViewById(R.id.btnShareQr);
+        btnShareQr.setOnClickListener(v -> {
+            String fileName = QrCodeUtil.generateQrCodeFileName(checkPoint.getName());
+            QrCodeUtil.shareQrCode(this, qrBitmap, fileName);
+        });
+
+        // 关闭按钮
+        MaterialButton btnClose = dialogView.findViewById(R.id.btnClose);
+        btnClose.setOnClickListener(v -> dialog.dismiss());
+
+        dialog.show();
+    }
+
+    /**
+     * 保存二维码到相册
+     */
+    private void saveQrCode(Bitmap bitmap, String checkPointName) {
+        String fileName = QrCodeUtil.generateQrCodeFileName(checkPointName);
+        boolean success = QrCodeUtil.saveQrCodeToGallery(this, bitmap, fileName);
+        if (success) {
+            UIUtil.showToast(this, "二维码已保存到相册");
+        } else {
+            UIUtil.showToast(this, "保存失败，请检查存储权限");
         }
     }
 
@@ -880,6 +1828,10 @@ public class CreateRaceActivity extends BaseActivity implements
 
     @Override
     protected void onDestroy() {
+        // 清理涟漪动效资源
+        if (binding != null && binding.rippleView != null) {
+            binding.rippleView.cleanup();
+        }
         super.onDestroy();
         // 页面销毁时自动保存草稿
         autoSaveDraft();
@@ -933,6 +1885,195 @@ public class CreateRaceActivity extends BaseActivity implements
         });
     }
 
+    /**
+     * 左右抖动动画：用于输入校验错误提示
+     */
+    private void shakeView(android.view.View view) {
+        android.view.animation.TranslateAnimation shake = new android.view.animation.TranslateAnimation(0, 10, 0, 0);
+        shake.setDuration(50);
+        shake.setRepeatCount(5);
+        shake.setRepeatMode(android.view.animation.Animation.REVERSE);
+        view.startAnimation(shake);
+    }
+
+    /**
+     * 切换基础信息的显示/隐藏状态
+     * 使用 TransitionManager 和动态约束修改实现平滑折叠效果
+     */
+    private void toggleBasicInfo() {
+        isBasicInfoCollapsed = !isBasicInfoCollapsed;
+        
+        // 使用 TransitionManager 实现平滑动画
+        TransitionManager.beginDelayedTransition(binding.mainContentLayout);
+        
+        if (isBasicInfoCollapsed) {
+            // 折叠：隐藏基础信息卡片
+            binding.cardBasicInfo.setVisibility(android.view.View.GONE);
+            
+            // 隐藏 Toolbar
+            binding.toolbar.setVisibility(android.view.View.GONE);
+            
+            // 隐藏保存按钮
+            binding.btnSaveRace.setVisibility(android.view.View.GONE);
+            
+            // 隐藏正常状态的打卡点卡片
+            binding.cardCheckpoints.setVisibility(android.view.View.GONE);
+            
+            // 显示搜索栏（地图全屏时）
+            binding.topSearchCard.setVisibility(android.view.View.VISIBLE);
+            
+            // 显示 BottomSheet
+            binding.bottomSheetCard.setVisibility(android.view.View.VISIBLE);
+            
+            // 移除 mainContentLayout 的 padding，让地图真正全屏
+            binding.mainContentLayout.setPadding(0, 0, 0, 0);
+            
+            // 移除地图容器的边框和圆角，让它真正全屏
+            binding.mapCardContainer.setCardElevation(0);
+            // 使用 CardView 的方法设置圆角
+            binding.mapCardContainer.setRadius(0);
+            
+            // 确保地图容器可见且始终在底层
+            binding.mapCardContainer.setVisibility(android.view.View.VISIBLE);
+            binding.mapView.setVisibility(android.view.View.VISIBLE);
+            
+            // 修改地图容器的约束，让它填满整个空间
+            androidx.constraintlayout.widget.ConstraintLayout.LayoutParams mapParams = 
+                (androidx.constraintlayout.widget.ConstraintLayout.LayoutParams) binding.mapCardContainer.getLayoutParams();
+            mapParams.topToTop = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID;
+            mapParams.bottomToBottom = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID;
+            mapParams.bottomToTop = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.UNSET; // 清除底部约束
+            mapParams.topMargin = 0;
+            mapParams.leftMargin = 0;
+            mapParams.rightMargin = 0;
+            binding.mapCardContainer.setLayoutParams(mapParams);
+            
+            // 确保地图容器在底层（elevation 最低）
+            binding.mapCardContainer.setElevation(0f);
+            binding.mapView.setElevation(0f);
+            
+            // 强制请求布局
+            binding.mapCardContainer.requestLayout();
+            binding.mainContentLayout.requestLayout();
+            
+            // 确保地图视图正确显示
+            binding.mapView.post(() -> {
+                binding.mapView.setVisibility(android.view.View.VISIBLE);
+                binding.mapCardContainer.setVisibility(android.view.View.VISIBLE);
+            });
+            
+            // 确保打卡点卡片显示在地图上方（固定悬浮）
+            binding.bottomSheetCard.bringToFront();
+            binding.bottomSheetCard.setElevation(15f);
+            
+            // 更新按钮文本为"手动添加打卡点"
+            binding.btnManualAddCheckpoint.setText("手动添加打卡点");
+            binding.btnManualAddCheckpoint.setIcon(ContextCompat.getDrawable(this, R.drawable.ic_add));
+            
+            // 重置第一次点击标志（只有通过点击地图进入全屏时才需要，通过按钮进入时直接可以点击地图设置打卡点）
+            // 这里不设置 isFirstMapClickAfterExpand = true，因为用户是通过按钮主动进入地图模式的，应该可以直接设置打卡点
+            isFirstMapClickAfterExpand = false;
+            
+            // 确保地图已初始化
+            if (aMap == null) {
+                initMap();
+            }
+            
+            // 延迟一下再调整地图视野，确保布局已完成
+            binding.mainContentLayout.postDelayed(() -> {
+                // 再次确保地图视图可见
+                binding.mapView.setVisibility(android.view.View.VISIBLE);
+                binding.mapCardContainer.setVisibility(android.view.View.VISIBLE);
+                
+                // 强制刷新地图视图
+                binding.mapView.invalidate();
+                binding.mapCardContainer.invalidate();
+                binding.mapView.requestLayout();
+                
+                // 再次延迟，确保布局完成后再操作地图
+                binding.mapView.postDelayed(() -> {
+                    if (aMap != null) {
+                        try {
+                            // 调整地图视野，显示所有打卡点（如果有）
+                            if (checkPoints.size() >= 2) {
+                                adjustMapToFitAllPoints();
+                            } else {
+                                // 如果没有打卡点，放大到合适的视野
+                                aMap.animateCamera(CameraUpdateFactory.zoomTo(15f));
+                            }
+                        } catch (Exception e) {
+                            // 忽略异常，至少确保地图可见
+                        }
+                    }
+                }, 100);
+            }, 50);
+        } else {
+            // 展开：显示基础信息卡片
+            binding.cardBasicInfo.setVisibility(android.view.View.VISIBLE);
+            
+            // 显示 Toolbar
+            binding.toolbar.setVisibility(android.view.View.VISIBLE);
+            
+            // 显示保存按钮
+            binding.btnSaveRace.setVisibility(android.view.View.VISIBLE);
+            
+            // 显示正常状态的打卡点卡片（退出地图后显示）
+            binding.cardCheckpoints.setVisibility(android.view.View.VISIBLE);
+            
+            // 隐藏搜索栏（退出地图全屏时）
+            binding.topSearchCard.setVisibility(android.view.View.GONE);
+            hideSearchResults(); // 同时隐藏搜索结果
+            
+            // 隐藏悬浮打卡点卡片
+            binding.bottomSheetCard.setVisibility(android.view.View.GONE);
+            
+            // 提示标签始终显示，不需要控制显示/隐藏
+            
+            // 恢复 mainContentLayout 的 padding
+            int padding16dp = (int) (16 * getResources().getDisplayMetrics().density);
+            binding.mainContentLayout.setPadding(padding16dp, padding16dp, padding16dp, padding16dp);
+            
+            // 恢复地图容器的边框和圆角
+            binding.mapCardContainer.setCardElevation(4);
+            binding.mapCardContainer.setRadius(16 * getResources().getDisplayMetrics().density);
+            
+            // 确保地图容器可见
+            binding.mapCardContainer.setVisibility(android.view.View.VISIBLE);
+            binding.mapView.setVisibility(android.view.View.VISIBLE);
+            
+            // 恢复地图容器的约束
+            androidx.constraintlayout.widget.ConstraintLayout.LayoutParams mapParams = 
+                (androidx.constraintlayout.widget.ConstraintLayout.LayoutParams) binding.mapCardContainer.getLayoutParams();
+            mapParams.topToTop = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.PARENT_ID;
+            mapParams.bottomToTop = binding.cardCheckpoints.getId();
+            mapParams.bottomToBottom = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.UNSET; // 清除底部约束
+            int margin16dp = (int) (16 * getResources().getDisplayMetrics().density);
+            mapParams.topMargin = margin16dp;
+            mapParams.leftMargin = 0;
+            mapParams.rightMargin = 0;
+            binding.mapCardContainer.setLayoutParams(mapParams);
+            binding.mapCardContainer.requestLayout();
+            
+            // 强制刷新地图视图
+            binding.mainContentLayout.post(() -> {
+                binding.mapView.invalidate();
+                binding.mapCardContainer.invalidate();
+            });
+            
+            // 恢复打卡点卡片的约束
+            androidx.constraintlayout.widget.ConstraintLayout.LayoutParams cpParams = 
+                (androidx.constraintlayout.widget.ConstraintLayout.LayoutParams) binding.cardCheckpoints.getLayoutParams();
+            cpParams.topToBottom = binding.mapCardContainer.getId();
+            cpParams.bottomToBottom = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.UNSET;
+            cpParams.topMargin = margin16dp;
+            binding.cardCheckpoints.setLayoutParams(cpParams);
+            
+            // 更新按钮文本为"地图"
+            binding.btnManualAddCheckpoint.setText("地图");
+            binding.btnManualAddCheckpoint.setIcon(null);
+        }
+    }
+    
 }
 
 

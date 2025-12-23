@@ -10,6 +10,7 @@ import com.example.cross_intelligence.R;
 import com.example.cross_intelligence.mvc.model.CheckPoint;
 import com.example.cross_intelligence.mvc.model.Race;
 import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
@@ -49,33 +50,54 @@ public class RaceListAdapter extends RecyclerView.Adapter<RaceListAdapter.RaceVi
         Race race = raceList.get(position);
         if (race == null) return;
 
-        // 1. 显示赛事名称（带序号，和管理员端逻辑一致）
-        int seqNum = race.getSequenceNumber();
-        String displayName;
-        if (seqNum > 0) {
-            displayName = seqNum + ". " + race.getName();
+        // 检查赛事是否已结束
+        boolean isEnded = isRaceEnded(race);
+
+        // 1. 显示赛事名称
+        holder.tvRaceName.setText(race.getName());
+        
+        // 设置状态标签
+        if (isEnded) {
+            holder.tvStatusTag.setText("已结束");
+            holder.tvStatusTag.setBackgroundResource(R.drawable.bg_status_tag_ended);
         } else {
-            // 序号未设置时用列表位置+1作为临时序号
-            displayName = (position + 1) + ". " + race.getName();
+            holder.tvStatusTag.setText("进行中");
+            holder.tvStatusTag.setBackgroundResource(R.drawable.bg_status_tag_ongoing);
         }
-        holder.tvRaceName.setText(displayName);
 
         // 2. 显示赛事时间范围（替换原有仅显示日期的逻辑，和管理员端对齐）
         String timeText = getTimeText(race);
-        holder.tvTime.setText(timeText);
+        holder.tvRaceTimeRange.setText(timeText);
 
         // 3. 显示赛事路线（起点→终点，和管理员端逻辑一致）
-        if (holder.tvRoute != null) { // 兼容布局是否有该控件
-            String routeText = getRouteText(race);
-            holder.tvRoute.setText(routeText);
-        }
+        String routeText = getRouteText(race);
+        holder.tvRaceRoute.setText(routeText);
 
-        // 4. 原有点击事件逻辑保留
-        holder.itemView.setOnClickListener(v -> {
-            if (listener != null) {
-                listener.onRaceClick(race);
-            }
-        });
+        // 4. 如果赛事已结束，设置灰色样式并禁用点击
+        if (isEnded) {
+            holder.itemView.setAlpha(0.5f); // 变灰
+            holder.itemView.setEnabled(false); // 禁用点击
+            holder.itemView.setOnClickListener(null);
+        } else {
+            holder.itemView.setAlpha(1.0f); // 正常显示
+            holder.itemView.setEnabled(true); // 启用点击
+            holder.itemView.setOnClickListener(v -> {
+                if (listener != null) {
+                    listener.onRaceClick(race);
+                }
+            });
+        }
+    }
+    
+    /**
+     * 检查赛事是否已结束
+     */
+    private boolean isRaceEnded(Race race) {
+        if (race.getEndTime() == null) {
+            return false;
+        }
+        Date now = new Date();
+        return race.getEndTime().before(now);
     }
 
     @Override
@@ -86,15 +108,17 @@ public class RaceListAdapter extends RecyclerView.Adapter<RaceListAdapter.RaceVi
     // 静态内部类 ViewHolder（改用findViewById）
     static class RaceViewHolder extends RecyclerView.ViewHolder {
         TextView tvRaceName;
-        TextView tvTime;
-        TextView tvRoute; // 路线文本（可选）
+        TextView tvStatusTag;
+        TextView tvRaceTimeRange;
+        TextView tvRaceRoute;
 
         public RaceViewHolder(View itemView) {
             super(itemView);
             // 绑定布局控件（确保控件ID和布局文件一致）
             tvRaceName = itemView.findViewById(R.id.tvRaceName);
-            tvTime = itemView.findViewById(R.id.tvTime);
-            tvRoute = itemView.findViewById(R.id.tvRoute); // 如果布局中有该控件
+            tvStatusTag = itemView.findViewById(R.id.tvStatusTag);
+            tvRaceTimeRange = itemView.findViewById(R.id.tvRaceTimeRange);
+            tvRaceRoute = itemView.findViewById(R.id.tvRaceRoute);
         }
     }
 
@@ -109,9 +133,9 @@ public class RaceListAdapter extends RecyclerView.Adapter<RaceListAdapter.RaceVi
         String endPoint = null;
 
         for (CheckPoint point : points) {
-            if ("起点".equals(point.getType())) {
+            if (CheckPoint.TYPE_START.equals(point.getType())) {
                 startPoint = point.getName();
-            } else if ("终点".equals(point.getType())) {
+            } else if (CheckPoint.TYPE_FINISH.equals(point.getType())) {
                 endPoint = point.getName();
             }
         }
@@ -127,16 +151,17 @@ public class RaceListAdapter extends RecyclerView.Adapter<RaceListAdapter.RaceVi
         }
     }
 
-    // 【核心适配】获取赛事时间文本（复用管理员端逻辑）
+    // 【核心适配】获取赛事时间文本（复用管理员端逻辑，使用中文格式）
     private String getTimeText(Race race) {
+        SimpleDateFormat chineseFormat = new SimpleDateFormat("yyyy年M月d日 HH:mm", Locale.CHINA);
         if (race.getStartTime() != null && race.getEndTime() != null) {
-            // 完整时间范围：yyyy-MM-dd HH:mm - yyyy-MM-dd HH:mm
-            return dateTimeFormat.format(race.getStartTime()) + " - " + dateTimeFormat.format(race.getEndTime());
+            // 完整时间范围：yyyy年M月d日 HH:mm - yyyy年M月d日 HH:mm
+            return chineseFormat.format(race.getStartTime()) + " - " + chineseFormat.format(race.getEndTime());
         } else if (race.getStartTime() != null) {
             // 仅显示开始时间
-            return dateTimeFormat.format(race.getStartTime()) + " - ";
+            return chineseFormat.format(race.getStartTime()) + " - ";
         } else {
-            return "未设置时间";
+            return "待定";
         }
     }
 }

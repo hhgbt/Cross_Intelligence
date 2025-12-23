@@ -1,79 +1,233 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:padding="16dp">
+    android:background="@drawable/bg_bottom_sheet"
+    android:paddingTop="8dp"
+    android:paddingBottom="24dp"
+    android:elevation="0dp">
 
-    <com.google.android.material.textfield.TextInputLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content">
-
-        <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/etName"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="名称" />
-    </com.google.android.material.textfield.TextInputLayout>
-
-    <com.google.android.material.textfield.TextInputLayout
-        android:id="@+id/tilType"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+    <!-- Handle 顶部横条 -->
+    <View
+        android:layout_width="40dp"
+        android:layout_height="4dp"
+        android:layout_gravity="center_horizontal"
         android:layout_marginTop="8dp"
-        android:hint="类型">
+        android:layout_marginBottom="16dp"
+        android:background="#E0E0E0"
+        android:backgroundTint="#CCCCCC" />
 
-        <AutoCompleteTextView
-            android:id="@+id/actType"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="选择类型：起点/检查点/终点"
-            android:inputType="none"
-            android:focusable="false" />
-    </com.google.android.material.textfield.TextInputLayout>
-
-    <com.google.android.material.textfield.TextInputLayout
+    <!-- 标题栏 -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp">
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        android:paddingTop="8dp"
+        android:paddingBottom="16dp">
 
-        <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/etLatitude"
-            android:layout_width="match_parent"
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:src="@drawable/ic_location"
+            android:layout_marginEnd="8dp"
+            app:tint="@color/forest_green" />
+
+        <TextView
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:hint="纬度"
-            android:inputType="numberDecimal" />
-    </com.google.android.material.textfield.TextInputLayout>
+            android:layout_weight="1"
+            android:text="创建打卡点"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:textColor="#212121" />
 
-    <com.google.android.material.textfield.TextInputLayout
+    </LinearLayout>
+
+    <!-- 内容区域 -->
+    <ScrollView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp">
+        android:fillViewport="true">
 
-        <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/etLongitude"
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="经度"
-            android:inputType="numberDecimal" />
-    </com.google.android.material.textfield.TextInputLayout>
+            android:orientation="vertical"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp">
 
-    <com.google.android.material.textfield.TextInputLayout
-        android:layout_width="match_parent"
+            <!-- 名称输入 -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                app:boxStrokeWidth="2dp"
+                app:boxStrokeColor="@color/forest_green"
+                android:hint="名称">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etName"
+                    android:layout_width="match_parent"
+                    android:layout_height="56dp" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- 经纬度输入（一行显示） -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="8dp">
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                    app:boxStrokeWidth="2dp"
+                    app:boxStrokeColor="@color/forest_green"
+                    android:hint="纬度"
+                    android:layout_marginEnd="8dp">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/etLatitude"
+                        android:layout_width="match_parent"
+                        android:layout_height="56dp"
+                        android:inputType="numberDecimal|numberSigned" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                    app:boxStrokeWidth="2dp"
+                    app:boxStrokeColor="@color/forest_green"
+                    android:hint="经度">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/etLongitude"
+                        android:layout_width="match_parent"
+                        android:layout_height="56dp"
+                        android:inputType="numberDecimal|numberSigned" />
+                </com.google.android.material.textfield.TextInputLayout>
+            </LinearLayout>
+
+            <!-- 类型选择（Chips） -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginTop="10dp"
+                android:layout_marginBottom="10dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="类型"
+                    android:textSize="16sp"
+                    android:textColor="#666666"
+                    android:layout_marginStart="44dp"
+                    android:layout_marginEnd="10dp" />
+
+                <com.google.android.material.chip.ChipGroup
+                    android:id="@+id/chipGroupType"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="30dp"
+                    app:singleSelection="true"
+                    app:selectionRequired="true"
+                    app:chipSpacingHorizontal="4dp">
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/chipStart"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="起点"
+                        android:textColor="#FF9800"
+                        app:chipBackgroundColor="@color/chip_background_color_selector"
+                        app:chipMinHeight="32dp"
+                        app:chipStartPadding="12dp"
+                        app:chipEndPadding="12dp"
+                        app:chipStrokeWidth="0dp"
+                        android:layout_marginEnd="16dp"
+                        style="@style/Widget.MaterialComponents.Chip.Choice" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/chipCheckpoint"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="检查点"
+                        android:textColor="#FF9800"
+                        app:chipIcon="@drawable/ic_location"
+                        app:chipBackgroundColor="@color/chip_background_color_selector"
+                        app:chipMinHeight="32dp"
+                        app:chipStartPadding="12dp"
+                        app:chipEndPadding="12dp"
+                        app:chipStrokeWidth="0dp"
+                        android:layout_marginEnd="16dp"
+                        style="@style/Widget.MaterialComponents.Chip.Choice" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/chipEnd"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="终点"
+                        android:textColor="#FF9800"
+                        app:chipBackgroundColor="@color/chip_background_color_selector"
+                        app:chipMinHeight="32dp"
+                        app:chipStartPadding="12dp"
+                        app:chipEndPadding="12dp"
+                        app:chipStrokeWidth="0dp"
+                        style="@style/Widget.MaterialComponents.Chip.Choice" />
+                </com.google.android.material.chip.ChipGroup>
+            </LinearLayout>
+
+            <!-- 打卡半径输入 -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                app:boxStrokeWidth="2dp"
+                app:boxStrokeColor="@color/forest_green"
+                android:hint="打卡半径"
+                android:layout_marginTop="8dp"
+                app:suffixText="米 (m)">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etCheckRadius"
+                    android:layout_width="match_parent"
+                    android:layout_height="56dp"
+                    android:inputType="numberDecimal"
+                    android:text="50" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+        </LinearLayout>
+    </ScrollView>
+
+    <!-- 确定按钮 -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnConfirm"
+        android:layout_width="120dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp">
-
-        <com.google.android.material.textfield.TextInputEditText
-            android:id="@+id/etCheckRadius"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:hint="打卡半径（米，默认50米）"
-            android:inputType="numberDecimal"
-            android:text="50" />
-    </com.google.android.material.textfield.TextInputLayout>
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="0dp"
+        android:text="确定"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:textColor="@color/white"
+        app:backgroundTint="@color/forest_green"
+        app:cornerRadius="20dp"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        android:paddingTop="10dp"
+        android:paddingBottom="10dp" />
 
 </LinearLayout>
-
-
-
-

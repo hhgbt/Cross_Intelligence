@@ -82,9 +82,6 @@
             android:exported="false" />
 
         <activity
-            android:name="com.example.cross_intelligence.mvc.view.profile.UserSettingsActivity"
-            android:exported="false" />
-        <activity
             android:name="com.example.cross_intelligence.mvc.view.admin.AdminMainActivity"
             android:exported="false" />
         <activity
@@ -92,9 +89,16 @@
             android:exported="false" />
         <activity
             android:name="com.example.cross_intelligence.mvc.view.race.CreateRaceActivity"
-            android:exported="false" />
+            android:exported="false"
+            android:windowSoftInputMode="adjustPan" />
         <activity
             android:name="com.example.cross_intelligence.mvc.view.admin.RaceListActivity"
+            android:exported="false" />
+        <activity
+            android:name="com.example.cross_intelligence.mvc.view.admin.AdminPlayerResultsActivity"
+            android:exported="false" />
+        <activity
+            android:name="com.example.cross_intelligence.mvc.view.admin.AdminRaceResultsActivity"
             android:exported="false" />
         <activity
             android:name="com.example.cross_intelligence.mvc.view.race.RaceDetailActivity"
@@ -104,9 +108,6 @@
             android:exported="false" />
         <activity
             android:name="com.example.cross_intelligence.mvc.view.result.ResultDetailActivity"
-            android:exported="false" />
-        <activity
-            android:name="com.example.cross_intelligence.mvc.view.result.LeaderboardActivity"
             android:exported="false" />
         
         <!-- 【新增】我的成绩页面 -->

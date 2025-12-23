@@ -438,3 +438,11 @@ signup.setRaceId(race.getName());    // ❌ 错误
 **文档完整度**: ✅ 100%
 
 
+
+
+
+
+
+
+
+

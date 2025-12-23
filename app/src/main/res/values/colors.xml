@@ -9,8 +9,32 @@
     <color name="white">#FFFFFFFF</color>
     
     <!-- 品牌色：越野赛主题 -->
-    <color name="forest_green">#2E7D32</color>           <!-- 深林绿：主品牌色 -->
-    <color name="forest_green_light">#4CAF50</color>     <!-- 浅林绿：辅助色 -->
+    <color name="forest_green">#4CAF50</color>           <!-- 浅林绿：主品牌色 -->
+    <color name="forest_green_light">#66BB6A</color>     <!-- 更浅林绿：辅助色 -->
     <color name="trail_orange">#FF6F00</color>           <!-- 越野橙：强调色 -->
     <color name="trail_orange_light">#FFA726</color>     <!-- 浅橙色：辅助色 -->
+    <color name="trail_orange_lighter">#FFCC80</color>   <!-- 更浅橙色：按钮背景 -->
+    <color name="trail_orange_transparent">#80FFA726</color>  <!-- 半透明橙色：路线预览 -->
+    <color name="button_blue">#2196F3</color>            <!-- 蓝色按钮：保存按钮 -->
+    <color name="route_yellow">#FFEB3B</color>            <!-- 明亮黄色：轨迹线 -->
+    <color name="status_dnf">#F44336</color>             <!-- 未完成状态：红色 -->
+    
+    <!-- 美化配色：越野赛质感 -->
+    <color name="rock_beige">#F5F1E8</color>            <!-- 米黄色：岩石感 -->
+    <color name="forest_light_green">#E8F5E9</color>    <!-- 浅灰绿：森林感 -->
+    <color name="card_background_transparent">#E5FFFFFF</color>  <!-- 半透明白色：悬浮卡片背景 -->
+    <color name="page_background_light">#F5F7FA</color>  <!-- 页面浅灰背景 -->
+    
+    <!-- 极简登录页配色 -->
+    <color name="input_stroke_default">#E0E0E0</color>      <!-- 输入框默认边框：浅灰色 -->
+    <color name="input_stroke_focused">@color/forest_green</color>  <!-- 输入框聚焦边框：品牌绿 -->
+    <color name="input_hint">#999999</color>              <!-- 输入框提示文字：浅灰色 -->
+    <color name="input_icon">#999999</color>              <!-- 输入框图标：浅灰色 -->
+    <color name="text_secondary">#666666</color>          <!-- 次要文字：深灰色 -->
+    <!-- 兼容旧布局使用的次要深色文字（与 text_secondary 保持一致） -->
+    <color name="text_secondary_dark">#666666</color>
+    
+    <!-- 欢迎页按钮毛玻璃效果颜色 -->
+    <color name="button_glass_green">#804CAF50</color>    <!-- 绿色毛玻璃背景：半透明品牌绿 -->
+    <color name="button_glass_green_stroke">#B04CAF50</color>  <!-- 绿色毛玻璃边框：更不透明的品牌绿 -->
 </resources>

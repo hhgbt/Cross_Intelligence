@@ -1,143 +1,366 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:fillViewport="true">
+    android:background="#F5F5F5">
 
-<androidx.constraintlayout.widget.ConstraintLayout
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:padding="16dp">
-
-    <TextView
-        android:id="@+id/tvUser"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:text="用户ID"
-        android:textAppearance="?attr/textAppearanceHeadline6"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-
-    <TextView
-        android:id="@+id/tvRank"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:text="排名"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/tvUser" />
-
-    <TextView
-        android:id="@+id/tvElapsed"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:text="耗时：--"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/tvRank" />
-
-    <TextView
-        android:id="@+id/tvPenalty"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:text="罚时：--"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/tvElapsed" />
-
-    <TextView
-        android:id="@+id/tvTotal"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:text="总计：--"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/tvPenalty" />
-
-    <TextView
-        android:id="@+id/tvStatus"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:text="状态：--"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/tvTotal" />
-
-    <!-- 【新增】轨迹地图 -->
-    <TextView
-        android:id="@+id/tvTrackTitle"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="24dp"
-        android:text="比赛轨迹"
-        android:textAppearance="?attr/textAppearanceHeadline6"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/tvStatus" />
-
+    <!-- 【全屏地图】占据整个画面 -->
     <com.amap.api.maps.MapView
         android:id="@+id/mapViewTrack"
-        android:layout_width="0dp"
-        android:layout_height="300dp"
-        android:layout_marginTop="8dp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/tvTrackTitle" />
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
 
-    <!-- 【新增】轨迹统计信息 -->
-    <TextView
-        android:id="@+id/tvTrackStats"
-        android:layout_width="0dp"
+    <!-- 左上角返回按钮 -->
+    <ImageButton
+        android:id="@+id/btnBack"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="16dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="返回"
+        android:src="@drawable/ic_arrow_back"
+        app:tint="@color/forest_green"
+        android:layout_gravity="top|start" />
+
+    <!-- 【完赛徽章】右上角 -->
+    <FrameLayout
+        android:id="@+id/badgeContainer"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:text="轨迹点数：加载中..."
-        android:textSize="14sp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/mapViewTrack" />
+        android:layout_gravity="top|end"
+        android:layout_marginEnd="16dp"
+        android:layout_marginTop="48dp"
+        android:visibility="gone">
 
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/cardBadge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:cardBackgroundColor="#E6FF5722"
+            app:cardCornerRadius="20dp"
+            app:cardElevation="8dp"
+            app:cardUseCompatPadding="true">
+
+                <TextView
+                    android:id="@+id/tvFinisherBadge"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingStart="20dp"
+                    android:paddingTop="8dp"
+                    android:paddingEnd="20dp"
+                    android:paddingBottom="8dp"
+                    android:text="完赛"
+                    android:textColor="#FFFFFF"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
+
+        </com.google.android.material.card.MaterialCardView>
+
+    </FrameLayout>
+
+    <!-- 【悬浮内容卡片】带圆角，悬浮在地图上 -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/cardContent"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|center_horizontal"
+        android:layout_marginStart="0dp"
+        android:layout_marginEnd="0dp"
+        android:layout_marginBottom="80dp"
+        app:cardCornerRadius="24dp"
+        app:cardElevation="12dp"
+        app:cardUseCompatPadding="true">
+
+        <androidx.core.widget.NestedScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:maxHeight="500dp"
+            android:fillViewport="true"
+            android:paddingBottom="16dp">
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:paddingTop="24dp"
+                android:paddingBottom="0dp">
+
+                <!-- 【核心数据大字报】总用时、里程、平均配速横向排开 -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/cardKeyStats"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="16dp"
+                    android:layout_marginTop="0dp"
+                    android:layout_marginEnd="16dp"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="4dp"
+                    app:cardUseCompatPadding="true"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:padding="16dp"
+                        android:weightSum="10">
+
+                        <!-- 总用时 -->
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="3"
+                            android:gravity="center"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:id="@+id/tvTotal"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="--:--:--"
+                                android:textSize="24sp"
+                                android:textColor="#2196F3"
+                                android:textStyle="bold"
+                                android:maxLines="1"
+                                android:ellipsize="none" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="4dp"
+                                android:text="总用时"
+                                android:textColor="#666666"
+                                android:textSize="12sp" />
+                        </LinearLayout>
+
+                        <!-- 分隔线 -->
+                        <View
+                            android:layout_width="1dp"
+                            android:layout_height="32dp"
+                            android:alpha="0.2"
+                            android:background="#000000" />
+
+                        <!-- 里程 - 调整宽度和字体大小，使其更协调 -->
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="4"
+                            android:gravity="center"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:id="@+id/tvDistance"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="-- km"
+                                android:textSize="24sp"
+                                android:textColor="#4CAF50"
+                                android:textStyle="bold"
+                                android:maxLines="1"
+                                android:ellipsize="none" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="4dp"
+                                android:text="总里程"
+                                android:textColor="#666666"
+                                android:textSize="12sp" />
+                        </LinearLayout>
+
+                        <!-- 分隔线 -->
+                        <View
+                            android:layout_width="1dp"
+                            android:layout_height="32dp"
+                            android:alpha="0.2"
+                            android:background="#000000" />
+
+                        <!-- 平均配速 -->
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="3"
+                            android:gravity="center"
+                            android:orientation="vertical">
+
+                            <TextView
+                                android:id="@+id/tvPace"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="--'/km"
+                                android:textSize="24sp"
+                                android:textColor="#FF9800"
+                                android:textStyle="bold"
+                                android:maxLines="1"
+                                android:ellipsize="none" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="4dp"
+                                android:text="平均配速"
+                                android:textColor="#666666"
+                                android:textSize="12sp" />
+                        </LinearLayout>
+
+                    </LinearLayout>
+
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- 【详细数据卡片】赛事名称、用户ID、排名、耗时、罚时、状态 -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/cardDetailStats"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="16dp"
+                    android:layout_marginTop="16dp"
+                    android:layout_marginEnd="16dp"
+                    android:layout_marginBottom="16dp"
+                    app:cardCornerRadius="16dp"
+                    app:cardElevation="4dp"
+                    app:cardUseCompatPadding="true"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toBottomOf="@id/cardKeyStats"
+                    app:layout_constraintBottom_toBottomOf="parent">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+
+                        <!-- 用户ID和赛事名称一行 -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical">
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:orientation="vertical">
+
+                                <TextView
+                                    android:id="@+id/tvUser"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:text="用户ID"
+                                    android:textSize="16sp"
+                                    android:textStyle="bold"
+                                    android:textColor="#333333" />
+
+                                <!-- 序号：xx号 -->
+                                <TextView
+                                    android:id="@+id/tvSequence"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginTop="4dp"
+                                    android:text="序号：--"
+                                    android:textSize="14sp"
+                                    android:textColor="#666666"
+                                    android:visibility="visible" />
+                            </LinearLayout>
+
+                            <TextView
+                                android:id="@+id/tvRaceName"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="赛事名称"
+                                android:textSize="20sp"
+                                android:textStyle="bold"
+                                android:textColor="#333333"
+                                android:gravity="end" />
+                        </LinearLayout>
+
+                        <!-- 排名 -->
+                        <TextView
+                            android:id="@+id/tvRank"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:text="排名"
+                            android:textSize="14sp" />
+
+                        <!-- 分隔线 -->
+                        <View
+                            android:layout_width="match_parent"
+                            android:layout_height="1dp"
+                            android:layout_marginTop="12dp"
+                            android:layout_marginBottom="12dp"
+                            android:alpha="0.2"
+                            android:background="#000000" />
+
+                        <TextView
+                            android:id="@+id/tvElapsed"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="耗时：--"
+                            android:textSize="14sp" />
+
+                        <TextView
+                            android:id="@+id/tvStatus"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:text="状态：--"
+                            android:textSize="14sp" />
+                    </LinearLayout>
+
+                </com.google.android.material.card.MaterialCardView>
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+        </androidx.core.widget.NestedScrollView>
+
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- 【悬浮底部操作栏】 -->
     <LinearLayout
-        android:id="@+id/layoutButtons"
-        android:layout_width="0dp"
+        android:id="@+id/bottomActionBar"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="24dp"
-        android:gravity="center"
+        android:layout_gravity="bottom|center_horizontal"
+        android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:weightSum="2"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/tvTrackStats">
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="16dp"
+        android:padding="0dp">
 
+        <!-- 导出按钮 - 品牌色圆角按钮 -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnExportSingle"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="导出CSV" />
+            android:backgroundTint="#2196F3"
+            android:text="导出CSV"
+            android:textColor="#FFFFFF"
+            android:elevation="8dp"
+            app:cornerRadius="20dp" />
 
         <Space
-            android:layout_width="16dp"
+            android:layout_width="20dp"
             android:layout_height="0dp" />
 
+        <!-- 分享按钮 - 品牌色圆角按钮 -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnShare"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="分享成绩" />
+            android:backgroundTint="#2196F3"
+            android:text="分享成绩"
+            android:textColor="#FFFFFF"
+            android:elevation="8dp"
+            app:cornerRadius="20dp" />
+
     </LinearLayout>
 
-</androidx.constraintlayout.widget.ConstraintLayout>
-
-</ScrollView>
-
-
-
-
+</FrameLayout>

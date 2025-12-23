@@ -16,6 +16,8 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        // 高德官方 Maven 仓库（部分版本只发布在此处）
+        maven(url = "https://a.amap.com/maven")
     }
 }
 

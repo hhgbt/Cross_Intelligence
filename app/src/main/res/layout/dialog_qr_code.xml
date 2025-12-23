@@ -1,68 +1,122 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="vertical"
-    android:padding="24dp"
-    android:gravity="center">
+    android:background="@drawable/bg_qr_dialog_glass"
+    android:padding="24dp">
 
-    <!-- 打卡点名称 -->
-    <TextView
-        android:id="@+id/tvCheckPointName"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="打卡点名称"
-        android:textSize="18sp"
-        android:textStyle="bold"
-        android:textColor="@android:color/black"
-        android:layout_marginBottom="16dp" />
+    <!-- 左上角返回按钮 -->
 
-    <!-- 二维码图片 -->
-    <ImageView
-        android:id="@+id/ivQrCode"
-        android:layout_width="300dp"
-        android:layout_height="300dp"
-        android:contentDescription="打卡点二维码"
-        android:scaleType="fitCenter"
-        android:background="#FFFFFF"
-        android:padding="8dp" />
-
-    <!-- 提示文字 -->
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="选手扫描此二维码进行打卡"
-        android:textSize="14sp"
-        android:textColor="#666666"
-        android:layout_marginTop="16dp"
-        android:layout_marginBottom="16dp" />
-
-    <!-- 操作按钮 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center">
+        android:orientation="vertical"
+        android:gravity="center"
+        android:layout_marginTop="40dp">
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnSaveQr"
-            android:layout_width="0dp"
+        <!-- 打卡点名称 -->
+        <TextView
+            android:id="@+id/tvCheckPointName"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:layout_marginEnd="8dp"
-            android:text="保存图片"
-            style="@style/Widget.Material3.Button.OutlinedButton" />
+            android:text="打卡点名称"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:textColor="#333333"
+            android:layout_marginBottom="24dp" />
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnShareQr"
-            android:layout_width="0dp"
+        <!-- 二维码容器（带发光效果） -->
+        <FrameLayout
+            android:layout_width="300dp"
+            android:layout_height="300dp"
+            android:layout_marginBottom="24dp"
+            android:background="@drawable/bg_qr_code_glow"
+            android:elevation="8dp"
+            android:padding="16dp">
+
+            <!-- 二维码图片 -->
+            <ImageView
+                android:id="@+id/ivQrCode"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="打卡点二维码"
+                android:scaleType="fitCenter"
+                android:background="#FFFFFF" />
+
+        </FrameLayout>
+
+        <!-- 状态提示（柔和样式） -->
+        <TextView
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:layout_marginStart="8dp"
-            android:text="分享" />
+            android:text="选手扫描此二维码进行打卡"
+            android:textSize="18sp"
+            android:textColor="#2196F3"
+            android:textStyle="bold"
+            android:background="@drawable/bg_hint_text_blue"
+            android:paddingStart="16dp"
+            android:paddingTop="10dp"
+            android:paddingEnd="16dp"
+            android:paddingBottom="10dp"
+            android:layout_marginBottom="20dp" />
+
+        <!-- 操作按钮 -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:layout_marginBottom="16dp">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnSaveQr"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginEnd="12dp"
+                android:minHeight="64dp"
+                android:text="保存图片"
+                android:textSize="16sp"
+                app:cornerRadius="20dp"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:textColor="@color/button_blue"
+                app:strokeColor="@color/button_blue"
+                app:strokeWidth="2dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnShareQr"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="12dp"
+                android:minHeight="64dp"
+                android:text="分享"
+                android:textSize="16sp"
+                app:cornerRadius="20dp"
+                android:backgroundTint="@color/button_blue"
+                android:textColor="#FFFFFF" />
+
+        </LinearLayout>
+
+        <!-- 关闭按钮 -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnClose"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:minWidth="100dp"
+            android:minHeight="48dp"
+            android:text="关闭"
+            android:textSize="14sp"
+            app:cornerRadius="20dp"
+            android:backgroundTint="@color/forest_green"
+            android:textColor="#FFFFFF" />
 
     </LinearLayout>
 
-</LinearLayout>
+</FrameLayout>
+
 
 

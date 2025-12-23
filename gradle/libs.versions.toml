@@ -12,6 +12,8 @@ retrofit = "3.0.0"
 okhttpLogging = "5.3.2"
 mockito = "5.11.0"
 amap3d = "10.0.600"
+amapsearch = "9.7.4"
+amaplocation = "6.5.1"
 zxing = "4.3.0"
 lottie = "6.1.0"
 testRules = "1.7.0"
@@ -32,6 +34,8 @@ retrofit-gson = { group = "com.squareup.retrofit2", name = "converter-gson", ver
 okhttp-logging = { group = "com.squareup.okhttp3", name = "logging-interceptor", version.ref = "okhttpLogging" }
 mockito-core = { group = "org.mockito", name = "mockito-core", version.ref = "mockito" }
 amap3d = { group = "com.amap.api", name = "3dmap", version.ref = "amap3d" }
+amapsearch = { group = "com.amap.api", name = "search", version.ref = "amapsearch" }
+amaplocation = { group = "com.amap.api", name = "location", version.ref = "amaplocation" }
 zxing = { group = "com.journeyapps", name = "zxing-android-embedded", version.ref = "zxing" }
 lottie = { group = "com.airbnb.android", name = "lottie", version.ref = "lottie" }
 test-rules = { group = "androidx.test", name = "rules", version.ref = "testRules" }

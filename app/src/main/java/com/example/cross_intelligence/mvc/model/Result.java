@@ -22,6 +22,7 @@ public class Result extends RealmObject {
     private long totalSeconds;
     private int rank;
     private String status;
+    private String thumbnailPath; // 轨迹缩略图路径
 
     public String getResultId() {
         return resultId;
@@ -100,6 +101,14 @@ public class Result extends RealmObject {
 
     public void setStatusRaw(String statusValue) {
         this.status = statusValue;
+    }
+
+    public String getThumbnailPath() {
+        return thumbnailPath;
+    }
+
+    public void setThumbnailPath(String thumbnailPath) {
+        this.thumbnailPath = thumbnailPath;
     }
 }
 

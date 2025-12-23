@@ -4,40 +4,78 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_margin="8dp"
-    app:cardCornerRadius="8dp"
-    app:cardElevation="2dp">
+    app:cardCornerRadius="12dp"
+    app:cardElevation="4dp">
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:padding="16dp">
 
+        <!-- 赛事头图 -->
+        <com.google.android.material.imageview.ShapeableImageView
+            android:id="@+id/ivRaceImage"
+            android:layout_width="120dp"
+            android:layout_height="120dp"
+            android:scaleType="centerCrop"
+            android:contentDescription="赛事图片"
+            app:cornerFamily="rounded"
+            app:cornerSize="8dp"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent" />
+
+        <!-- 状态标签 -->
+        <TextView
+            android:id="@+id/tvStatusTag"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:layout_marginEnd="8dp"
+            android:paddingStart="12dp"
+            android:paddingTop="4dp"
+            android:paddingEnd="12dp"
+            android:paddingBottom="4dp"
+            android:text="报名中"
+            android:textColor="@android:color/white"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:background="@drawable/bg_status_tag_open"
+            android:visibility="gone"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
         <!-- 赛事名称 -->
         <TextView
             android:id="@+id/tvRaceName"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:layout_marginEnd="8dp"
             android:text="赛事名称"
             android:textColor="@android:color/black"
             android:textSize="18sp"
             android:textStyle="bold"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
+            android:maxLines="1"
+            android:ellipsize="end"
+            app:layout_constraintEnd_toStartOf="@id/tvStatusTag"
+            app:layout_constraintStart_toEndOf="@id/ivRaceImage"
             app:layout_constraintTop_toTopOf="parent" />
 
-        <!-- 赛事描述 -->
+        <!-- 起点→终点 -->
         <TextView
-            android:id="@+id/tvRaceDescription"
+            android:id="@+id/tvRaceRoute"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:ellipsize="end"
-            android:maxLines="2"
-            android:text="赛事描述"
-            android:textColor="#666666"
-            android:textSize="14sp"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
+            android:layout_marginStart="12dp"
+            android:layout_marginTop="10dp"
+            android:drawableStart="@drawable/ic_route"
+            android:drawablePadding="4dp"
+            android:text="起点→终点"
+            android:textColor="#999999"
+            android:textSize="12sp"
+            app:layout_constraintEnd_toStartOf="@id/btnSignup"
+            app:layout_constraintStart_toEndOf="@id/ivRaceImage"
             app:layout_constraintTop_toBottomOf="@id/tvRaceName" />
 
         <!-- 时间信息 -->
@@ -45,15 +83,16 @@
             android:id="@+id/tvRaceTime"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:drawableStart="@android:drawable/ic_menu_recent_history"
+            android:layout_marginStart="12dp"
+            android:layout_marginTop="6dp"
+            android:drawableStart="@drawable/ic_time"
             android:drawablePadding="4dp"
-            android:text="2025-01-01 09:00 - 11:00"
+            android:text="开赛日期：2025-05-20"
             android:textColor="#999999"
             android:textSize="12sp"
             app:layout_constraintEnd_toStartOf="@id/btnSignup"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/tvRaceDescription" />
+            app:layout_constraintStart_toEndOf="@id/ivRaceImage"
+            app:layout_constraintTop_toBottomOf="@id/tvRaceRoute" />
 
         <!-- 报名按钮 -->
         <com.google.android.material.button.MaterialButton
@@ -61,15 +100,22 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="8dp"
+            android:layout_marginTop="8dp"
+            android:minWidth="100dp"
+            android:minHeight="40dp"
             android:text="报名"
+            android:textColor="@android:color/white"
             android:textSize="14sp"
-            app:cornerRadius="4dp"
+            android:textStyle="bold"
+            android:background="@drawable/bg_button_signup_gradient"
+            app:cornerRadius="20dp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/tvRaceDescription" />
+            app:layout_constraintTop_toBottomOf="@id/tvRaceTime" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
 
 </com.google.android.material.card.MaterialCardView>
+
 
 

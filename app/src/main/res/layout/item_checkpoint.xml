@@ -1,56 +1,121 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:padding="12dp">
+    android:layout_marginStart="8dp"
+    android:layout_marginTop="4dp"
+    android:layout_marginEnd="8dp"
+    android:layout_marginBottom="4dp"
+    app:cardCornerRadius="8dp"
+    app:cardElevation="1dp"
+    app:cardUseCompatPadding="true"
+    app:strokeWidth="0dp">
 
-    <TextView
-        android:id="@+id/tvPointName"
-        android:layout_width="0dp"
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="打卡点"
-        android:textStyle="bold"
-        app:layout_constraintEnd_toStartOf="@+id/btnDelete"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        android:padding="16dp"
+        android:minHeight="72dp">
 
-    <TextView
-        android:id="@+id/tvPointCoord"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:text="120.0, 30.0"
-        app:layout_constraintEnd_toStartOf="@+id/btnDelete"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/tvPointName" />
+        <!-- 左侧色彩条 -->
+        <View
+            android:id="@+id/vColorStrip"
+            android:layout_width="4dp"
+            android:layout_height="0dp"
+            android:background="@color/forest_green"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent" />
 
-    <!-- 二维码图标按钮 -->
-    <ImageButton
-        android:id="@+id/btnShowQr"
-        android:layout_width="36dp"
-        android:layout_height="36dp"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        android:contentDescription="查看二维码"
-        android:src="@android:drawable/ic_menu_gallery"
-        app:layout_constraintEnd_toStartOf="@+id/btnDelete"
-        app:layout_constraintTop_toTopOf="parent" />
+        <!-- 中间：打卡点信息 -->
+        <LinearLayout
+            android:id="@+id/llCheckpointInfo"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:layout_marginEnd="8dp"
+            android:orientation="vertical"
+            app:layout_constraintEnd_toStartOf="@+id/llActions"
+            app:layout_constraintStart_toEndOf="@id/vColorStrip"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent">
 
-    <ImageButton
-        android:id="@+id/btnDelete"
-        android:layout_width="36dp"
-        android:layout_height="36dp"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        android:contentDescription="删除"
-        android:src="@android:drawable/ic_delete"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+            <!-- 第一行：序号 + 打卡点名称 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+                <!-- 序号 -->
+                <TextView
+                    android:id="@+id/tvOrderIndex"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="8dp"
+                    android:text="1"
+                    android:textColor="#999999"
+                    android:textSize="14sp"
+                    android:textStyle="bold" />
 
+                <!-- 打卡点名称 -->
+                <TextView
+                    android:id="@+id/tvPointName"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="打卡点名称"
+                    android:textColor="@color/black"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:maxLines="1"
+                    android:ellipsize="end" />
+            </LinearLayout>
 
+            <!-- 第二行：经纬度信息 -->
+            <TextView
+                android:id="@+id/tvPointCoord"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="120.0, 30.0"
+                android:textColor="#999999"
+                android:textSize="13sp" />
+        </LinearLayout>
 
+        <!-- 右侧：操作按钮组 -->
+        <LinearLayout
+            android:id="@+id/llActions"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent">
 
+            <!-- 二维码按钮 -->
+            <ImageButton
+                android:id="@+id/btnQrCode"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="查看打卡二维码"
+                android:src="@drawable/ic_qr_code"
+                app:tint="@color/button_blue" />
 
+            <!-- 删除按钮 -->
+            <ImageButton
+                android:id="@+id/btnDelete"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="删除"
+                android:src="@drawable/ic_delete"
+                app:tint="@color/status_dnf" />
+        </LinearLayout>
 
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
+</com.google.android.material.card.MaterialCardView>

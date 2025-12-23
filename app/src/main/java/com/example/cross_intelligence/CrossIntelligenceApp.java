@@ -1,6 +1,7 @@
 package com.example.cross_intelligence;
 
 import android.app.Application;
+import android.content.Context;
 import android.content.SharedPreferences;
 import android.util.Base64;
 
@@ -37,7 +38,7 @@ public class CrossIntelligenceApp extends Application {
     }
 
     private byte[] loadRealmKey() {
-        SharedPreferences sp = getSharedPreferences("realm_secure_prefs", MODE_PRIVATE);
+        SharedPreferences sp = getSharedPreferences("realm_secure_prefs", Context.MODE_PRIVATE);
         String stored = sp.getString("realm_key", null);
         if (stored != null) {
             return Base64.decode(stored, Base64.NO_WRAP);

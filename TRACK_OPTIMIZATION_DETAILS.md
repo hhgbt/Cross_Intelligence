@@ -283,3 +283,11 @@ Log.d("TrackCache", "Last point: " + lastTrackPoint);
 **版本**: v2.0 (优化版)
 
 
+
+
+
+
+
+
+
+

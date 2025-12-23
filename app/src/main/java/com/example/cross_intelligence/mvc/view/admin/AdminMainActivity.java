@@ -5,6 +5,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.view.Window;
+import android.view.WindowInsetsController;
 import android.view.WindowManager;
 
 import androidx.core.content.ContextCompat;
@@ -56,10 +57,19 @@ public class AdminMainActivity extends BaseActivity {
             // Android 6.0+ 支持浅色状态栏（深色图标）
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 View decorView = window.getDecorView();
-                decorView.setSystemUiVisibility(
-                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE | 
-                    View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
-                );
+                // 使用新的 WindowInsetsController API (Android 11+)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    window.getInsetsController().setSystemBarsAppearance(
+                        WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS,
+                        WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
+                    );
+                } else {
+                    // 兼容旧版本 (Android 6.0 - 10)
+                    decorView.setSystemUiVisibility(
+                        View.SYSTEM_UI_FLAG_LAYOUT_STABLE | 
+                        View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+                    );
+                }
             }
         }
     }
@@ -80,9 +90,10 @@ public class AdminMainActivity extends BaseActivity {
 
         // 选手成绩按钮
         binding.cardPlayerRanking.setOnClickListener(v -> {
-            // TODO: 后续实现选手成绩功能
-            UIUtil.showToast(this, "选手成绩功能开发中，敬请期待");
+            Intent intent = new Intent(AdminMainActivity.this, AdminPlayerResultsActivity.class);
+            startActivity(intent);
         });
+        
     }
 
     @Override

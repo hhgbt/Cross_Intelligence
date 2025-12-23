@@ -28,3 +28,11 @@ public final class QrScannerHelper {
 
 
 
+
+
+
+
+
+
+
+

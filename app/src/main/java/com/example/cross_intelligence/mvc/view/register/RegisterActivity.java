@@ -2,11 +2,13 @@ package com.example.cross_intelligence.mvc.view.register;
 
 import android.animation.AnimatorSet;
 import android.animation.ObjectAnimator;
+import android.content.Intent;
 import android.os.Build;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.View;
 import android.view.Window;
+import android.view.WindowInsetsController;
 import android.view.WindowManager;
 import android.widget.ArrayAdapter;
 
@@ -47,7 +49,7 @@ public class RegisterActivity extends BaseActivity {
     }
     
     /**
-     * 设置沉浸式状态栏
+     * 设置状态栏：白色背景，深色图标
      */
     private void setupImmersiveStatusBar() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
@@ -55,33 +57,41 @@ public class RegisterActivity extends BaseActivity {
             window.clearFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS);
             window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
             
-            // 设置状态栏为透明
-            window.setStatusBarColor(ContextCompat.getColor(this, android.R.color.transparent));
+            // 设置状态栏为白色
+            window.setStatusBarColor(ContextCompat.getColor(this, android.R.color.white));
             
-            // Android 6.0+ 使用浅色图标
+            // Android 6.0+ 根据背景颜色设置状态栏图标颜色
+            // 白色背景使用深色图标
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 View decorView = window.getDecorView();
-                decorView.setSystemUiVisibility(
-                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE | 
-                    View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                );
+                // 使用新的 WindowInsetsController API (Android 11+)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    window.getInsetsController().setSystemBarsAppearance(
+                        WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS,
+                        WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
+                    );
+                } else {
+                    // 兼容旧版本 (Android 6.0 - 10)
+                    decorView.setSystemUiVisibility(
+                        View.SYSTEM_UI_FLAG_LAYOUT_STABLE | 
+                        View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+                    );
+                }
             }
         }
     }
 
     @Override
     protected void initView() {
-        // 角色下拉框设置
+        // 角色下拉框设置：MaterialAutoCompleteTextView 已内置更好的交互
         ArrayAdapter<String> roleAdapter = new ArrayAdapter<>(this, R.layout.item_dropdown_role, roleOptions);
         binding.actRegisterRole.setAdapter(roleAdapter);
-        binding.actRegisterRole.setOnClickListener(v -> binding.actRegisterRole.showDropDown());
-        binding.actRegisterRole.setOnFocusChangeListener((v, hasFocus) -> {
-            if (hasFocus) {
-                binding.actRegisterRole.showDropDown();
-            }
-        });
-        binding.tilRegisterRole.setEndIconOnClickListener(v -> binding.actRegisterRole.showDropDown());
-        binding.tilRegisterRole.setOnClickListener(v -> binding.actRegisterRole.showDropDown());
+        // 设置弹出菜单的垂直偏移，使其与输入框有适当间距
+        binding.actRegisterRole.setDropDownVerticalOffset(4);
+        // MaterialAutoCompleteTextView 会自动处理点击和焦点事件
+
+        // 密码显示/隐藏图标切换
+        binding.tilRegisterPassword.setEndIconOnClickListener(v -> togglePasswordVisibility());
 
         // 注册按钮
         binding.btnRegister.setOnClickListener(v -> {
@@ -89,8 +99,30 @@ public class RegisterActivity extends BaseActivity {
             handleRegister();
         });
         
-        // 返回登录按钮
-        binding.btnBackToLogin.setOnClickListener(v -> finish());
+        // 返回登录按钮：跳转到登录页面
+        binding.btnBackToLogin.setOnClickListener(v -> {
+            Intent intent = new Intent(RegisterActivity.this, com.example.cross_intelligence.mvc.view.login.LoginActivity.class);
+            startActivity(intent);
+            finish();
+        });
+    }
+    
+    /**
+     * 切换密码可见性
+     */
+    private void togglePasswordVisibility() {
+        boolean isPasswordVisible = binding.etRegisterPassword.getTransformationMethod() == null;
+        if (isPasswordVisible) {
+            // 隐藏密码
+            binding.etRegisterPassword.setTransformationMethod(android.text.method.PasswordTransformationMethod.getInstance());
+            binding.tilRegisterPassword.setEndIconDrawable(R.drawable.ic_visibility_off);
+        } else {
+            // 显示密码
+            binding.etRegisterPassword.setTransformationMethod(null);
+            binding.tilRegisterPassword.setEndIconDrawable(R.drawable.ic_visibility);
+        }
+        // 将光标移到文本末尾
+        binding.etRegisterPassword.setSelection(binding.etRegisterPassword.getText() != null ? binding.etRegisterPassword.getText().length() : 0);
     }
 
     private void handleRegister() {
@@ -109,15 +141,28 @@ public class RegisterActivity extends BaseActivity {
             binding.tilRegisterAccount.setError(getString(R.string.register_invalid_input));
             shakeView(binding.tilRegisterAccount);
             valid = false;
-        } else if (!account.matches("^[a-zA-Z0-9_]+$")) {
-            binding.tilRegisterAccount.setError("账号只能包含数字、字母和下划线");
+        } else if (account.length() > 20) {
+            binding.tilRegisterAccount.setError("账号长度不得超过20个字符");
+            shakeView(binding.tilRegisterAccount);
+            valid = false;
+        } else if (!account.matches("^[\\u4e00-\\u9fa5a-zA-Z0-9_]+$")) {
+            binding.tilRegisterAccount.setError("账号只能包含中文、英文字母（大小写）、数字和下划线");
             shakeView(binding.tilRegisterAccount);
             valid = false;
         } else {
             binding.tilRegisterAccount.setError(null);
         }
+        // 密码格式验证
         if (TextUtils.isEmpty(password)) {
             binding.tilRegisterPassword.setError(getString(R.string.register_invalid_input));
+            shakeView(binding.tilRegisterPassword);
+            valid = false;
+        } else if (password.length() < 6) {
+            binding.tilRegisterPassword.setError("密码不得少于6个字符");
+            shakeView(binding.tilRegisterPassword);
+            valid = false;
+        } else if (!password.matches("^[a-zA-Z0-9_]+$")) {
+            binding.tilRegisterPassword.setError("密码只能包含字母、数字和下划线");
             shakeView(binding.tilRegisterPassword);
             valid = false;
         } else {

@@ -74,6 +74,9 @@ public class RaceDiscoveryActivity extends BaseActivity implements RaceDiscovery
             return;
         }
         
+        // 传递报名控制器和用户ID给适配器
+        adapter.setSignupInfo(signupController, currentUserId);
+        
         loadRaces();
     }
 
@@ -102,9 +105,15 @@ public class RaceDiscoveryActivity extends BaseActivity implements RaceDiscovery
 
     @Override
     public void onSignupClick(Race race) {
+        // 检查赛事是否已结束
+        if (isRaceEnded(race)) {
+            UIUtil.showToast(this, "该赛事已结束，无法报名");
+            return;
+        }
+        
         // 检查是否已报名
         if (signupController.isUserSignedUp(currentUserId, race.getRaceId())) {
-            UIUtil.showToast(this, "您已报名该赛事");
+            UIUtil.showToast(this, "已报名");
             return;
         }
         
@@ -117,6 +126,17 @@ public class RaceDiscoveryActivity extends BaseActivity implements RaceDiscovery
                 })
                 .setNegativeButton("取消", null)
                 .show();
+    }
+    
+    /**
+     * 检查赛事是否已结束
+     */
+    private boolean isRaceEnded(Race race) {
+        if (race.getEndTime() == null) {
+            return false;
+        }
+        java.util.Date now = new java.util.Date();
+        return race.getEndTime().before(now);
     }
 
     @Override
@@ -133,13 +153,20 @@ public class RaceDiscoveryActivity extends BaseActivity implements RaceDiscovery
     private void performSignup(Race race) {
         boolean success = signupController.signupRace(currentUserId, race.getRaceId());
         if (success) {
-            new AlertDialog.Builder(this)
-                    .setTitle("报名成功")
-                    .setMessage("您已成功报名「" + race.getName() + "」！\n请在“我的赛事”中查看打卡地图。")
-                    .setPositiveButton("确定", null)
-                    .show();
+            UIUtil.showToast(this, "已报名");
+            // 刷新列表以更新报名状态和排序
+            loadRaces();
         } else {
             UIUtil.showToast(this, "报名失败，请稍后重试");
+        }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // 刷新列表以更新报名状态
+        if (adapter != null && adapter.getItemCount() > 0) {
+            adapter.notifyDataSetChanged();
         }
     }
 

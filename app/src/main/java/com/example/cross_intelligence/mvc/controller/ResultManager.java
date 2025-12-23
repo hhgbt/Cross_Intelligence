@@ -5,6 +5,7 @@ import androidx.annotation.NonNull;
 import com.example.cross_intelligence.mvc.model.CheckInRecord;
 import com.example.cross_intelligence.mvc.model.CheckPoint;
 import com.example.cross_intelligence.mvc.model.Race;
+import com.example.cross_intelligence.mvc.model.RaceSignup;
 import com.example.cross_intelligence.mvc.model.Result;
 import com.example.cross_intelligence.mvc.rules.RaceRuleConfig;
 
@@ -17,6 +18,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.Date;
 
 import io.realm.Realm;
 import io.realm.RealmResults;
@@ -56,34 +58,22 @@ public class ResultManager {
 
         int missing = totalCheckPoints - completed;
         Result.Status status;
-        long penaltySeconds = 0;
+        // 删除罚时逻辑，不再计算罚时
         if (missing > config.getMaxMissingAllowed()) {
             status = Result.Status.DNF;
-            penaltySeconds = config.getDnfPenaltySeconds();
         } else {
-            penaltySeconds += missing * config.getPenaltyPerMissingCheckpointSeconds();
-            status = missing > 0 ? Result.Status.FINISHED_WITH_PENALTY : Result.Status.FINISHED;
+            status = missing > 0 ? Result.Status.DNF : Result.Status.FINISHED;
         }
 
         long elapsedSeconds = Math.max(0, Duration.between(start, finishTime).getSeconds());
-        if (finishTime.isAfter(raceEnd)) {
-            long secondsOver = Duration.between(raceEnd, finishTime).getSeconds();
-            long minutes = (secondsOver + 59) / 60; // round up
-            if (minutes > 0) {
-                penaltySeconds += minutes * config.getOvertimePenaltyPerMinuteSeconds();
-                status = Result.Status.FINISHED_WITH_PENALTY;
-            }
-        }
-
-        long totalSeconds = elapsedSeconds + penaltySeconds;
 
         Result result = new Result();
         result.setResultId(UUID.randomUUID().toString());
         result.setRaceId(race.getRaceId());
         result.setUserId(userId);
         result.setElapsedSeconds(elapsedSeconds);
-        result.setPenaltySeconds(penaltySeconds);
-        result.setTotalSeconds(totalSeconds);
+        result.setPenaltySeconds(0); // 罚时始终为0
+        result.setTotalSeconds(elapsedSeconds); // 总时间等于已用时间
         result.setStatus(status);
         result.setRank(-1);
         return result;
@@ -105,9 +95,10 @@ public class ResultManager {
 
     public List<Result> rankResults(@NonNull List<Result> results) {
         List<Result> sortable = new ArrayList<>(results);
+        // 删除罚时后，按已用时间排序
         sortable.sort(Comparator
                 .comparing((Result r) -> r.getStatus() == Result.Status.DNF)
-                .thenComparingLong(Result::getTotalSeconds));
+                .thenComparingLong(Result::getElapsedSeconds));
         int rank = 1;
         for (Result result : sortable) {
             if (result.getStatus() == Result.Status.DNF) {
@@ -141,6 +132,75 @@ public class ResultManager {
         List<Result> copy = realm.copyFromRealm(results);
         realm.close();
         return copy;
+    }
+    
+    /**
+     * 【新增】检查赛事是否已结束，并为未完成选手自动创建空成绩记录
+     * 在查看成绩详情或加载成绩列表时调用此方法
+     * @param raceId 赛事ID
+     */
+    public void ensureUnfinishedResultsCreated(@NonNull String raceId) {
+        Realm realm = Realm.getDefaultInstance();
+        try {
+            // 获取赛事信息
+            Race race = realm.where(Race.class)
+                    .equalTo("raceId", raceId)
+                    .findFirst();
+            
+            if (race == null || race.getEndTime() == null) {
+                return; // 赛事不存在或未设置结束时间
+            }
+            
+            // 检查赛事是否已结束
+            Date now = new Date();
+            if (race.getEndTime().after(now)) {
+                return; // 赛事未结束，不需要创建空成绩
+            }
+            
+            // 获取所有已报名该赛事的用户
+            RealmResults<RaceSignup> signups = realm.where(RaceSignup.class)
+                    .equalTo("raceId", raceId)
+                    .findAll();
+            
+            if (signups.isEmpty()) {
+                return; // 没有报名记录
+            }
+            
+            // 获取所有已有成绩的用户ID
+            RealmResults<Result> existingResults = realm.where(Result.class)
+                    .equalTo("raceId", raceId)
+                    .findAll();
+            
+            java.util.Set<String> usersWithResults = new java.util.HashSet<>();
+            for (Result result : existingResults) {
+                usersWithResults.add(result.getUserId());
+            }
+            
+            // 为没有成绩的已报名用户创建空成绩记录
+            realm.beginTransaction();
+            for (RaceSignup signup : signups) {
+                String userId = signup.getUserId();
+                if (!usersWithResults.contains(userId)) {
+                    // 创建空成绩记录，状态为DNF（未完成）
+                    Result emptyResult = realm.createObject(Result.class, UUID.randomUUID().toString());
+                    emptyResult.setRaceId(raceId);
+                    emptyResult.setUserId(userId);
+                    emptyResult.setElapsedSeconds(0);
+                    emptyResult.setPenaltySeconds(0);
+                    emptyResult.setTotalSeconds(0);
+                    emptyResult.setStatus(Result.Status.DNF);
+                    emptyResult.setRank(-1);
+                }
+            }
+            realm.commitTransaction();
+        } catch (Exception e) {
+            if (realm.isInTransaction()) {
+                realm.cancelTransaction();
+            }
+            e.printStackTrace();
+        } finally {
+            realm.close();
+        }
     }
 }
 

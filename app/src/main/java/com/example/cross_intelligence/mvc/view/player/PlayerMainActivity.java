@@ -5,6 +5,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.view.Window;
+import android.view.WindowInsetsController;
 import android.view.WindowManager;
 
 import androidx.core.content.ContextCompat;
@@ -12,6 +13,10 @@ import androidx.core.content.ContextCompat;
 import com.example.cross_intelligence.R;
 import com.example.cross_intelligence.databinding.ActivityPlayerMainBinding;
 import com.example.cross_intelligence.mvc.base.BaseActivity;
+import com.example.cross_intelligence.mvc.controller.RaceSignupController;
+import com.example.cross_intelligence.mvc.controller.ResultManager;
+import com.example.cross_intelligence.mvc.model.Result;
+import com.example.cross_intelligence.mvc.util.PreferenceUtil;
 import com.example.cross_intelligence.mvc.util.UIUtil;
 import com.example.cross_intelligence.mvc.view.checkin.CheckInActivity;
 
@@ -21,6 +26,8 @@ import com.example.cross_intelligence.mvc.view.checkin.CheckInActivity;
 public class PlayerMainActivity extends BaseActivity {
 
     private ActivityPlayerMainBinding binding;
+    private RaceSignupController signupController;
+    private ResultManager resultManager;
 
     @Override
     protected int getLayoutId() {
@@ -55,10 +62,19 @@ public class PlayerMainActivity extends BaseActivity {
             // Android 6.0+ 支持浅色状态栏（深色图标）
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 View decorView = window.getDecorView();
-                decorView.setSystemUiVisibility(
-                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE | 
-                    View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
-                );
+                // 使用新的 WindowInsetsController API (Android 11+)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    window.getInsetsController().setSystemBarsAppearance(
+                        WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS,
+                        WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
+                    );
+                } else {
+                    // 兼容旧版本 (Android 6.0 - 10)
+                    decorView.setSystemUiVisibility(
+                        View.SYSTEM_UI_FLAG_LAYOUT_STABLE | 
+                        View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+                    );
+                }
             }
         }
     }
@@ -82,12 +98,30 @@ public class PlayerMainActivity extends BaseActivity {
             Intent intent = new Intent(PlayerMainActivity.this, com.example.cross_intelligence.mvc.view.result.MyResultsActivity.class);
             startActivity(intent);
         });
+        
     }
 
     @Override
     protected void initData() {
+        signupController = new RaceSignupController();
+        resultManager = new ResultManager();
         // 加载统计数据
         loadStatistics();
+    }
+    
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // 每次返回时刷新统计数据
+        loadStatistics();
+    }
+    
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (signupController != null) {
+            signupController.close();
+        }
     }
 
     /**
@@ -124,21 +158,18 @@ public class PlayerMainActivity extends BaseActivity {
     private int getRegisteredRaceCount() {
         try {
             // 获取当前登录的选手账号
-            String currentUserId = com.example.cross_intelligence.mvc.util.PreferenceUtil.getString(this, "account", "");
+            String currentUserId = PreferenceUtil.getString(this, "account", "");
             if (android.text.TextUtils.isEmpty(currentUserId)) {
                 android.util.Log.w("PlayerMainActivity", "Current user ID is empty");
                 return 0;
             }
             
-            io.realm.Realm realm = io.realm.Realm.getDefaultInstance();
-            try {
-                // 统计当前选手的报名记录
-                return (int) realm.where(com.example.cross_intelligence.mvc.model.RaceSignup.class)
-                        .equalTo("userId", currentUserId)
-                        .count();
-            } finally {
-                realm.close();
+            // 使用 RaceSignupController 查询已报名赛事ID列表，返回数量
+            if (signupController != null) {
+                java.util.List<String> signedUpRaceIds = signupController.getUserSignedUpRaceIds(currentUserId);
+                return signedUpRaceIds != null ? signedUpRaceIds.size() : 0;
             }
+            return 0;
         } catch (Exception e) {
             android.util.Log.e("PlayerMainActivity", "Failed to load registered race count", e);
             return 0;
@@ -146,27 +177,30 @@ public class PlayerMainActivity extends BaseActivity {
     }
 
     /**
-     * 获取已完成赛事数量（完成所有打卡并获得成绩）
+     * 获取已完成赛事数量（完成所有打卡并获得成绩，状态不是DNF）
      */
     private int getFinishedRaceCount() {
         try {
             // 获取当前登录的选手账号
-            String currentUserId = com.example.cross_intelligence.mvc.util.PreferenceUtil.getString(this, "account", "");
+            String currentUserId = PreferenceUtil.getString(this, "account", "");
             if (android.text.TextUtils.isEmpty(currentUserId)) {
                 android.util.Log.w("PlayerMainActivity", "Current user ID is empty");
                 return 0;
             }
             
-            io.realm.Realm realm = io.realm.Realm.getDefaultInstance();
-            try {
-                // 统计当前选手状态为 FINISHED 的成绩记录
-                return (int) realm.where(com.example.cross_intelligence.mvc.model.Result.class)
-                        .equalTo("userId", currentUserId)
-                        .equalTo("status", com.example.cross_intelligence.mvc.model.Result.Status.FINISHED.name())
-                        .count();
-            } finally {
-                realm.close();
+            // 使用 ResultManager 查询已完成成绩（排除DNF状态）
+            if (resultManager != null) {
+                java.util.List<Result> results = resultManager.loadResultsByUserId(currentUserId);
+                int count = 0;
+                for (Result result : results) {
+                    // 已完成：状态不是DNF
+                    if (result.getStatus() != null && result.getStatus() != Result.Status.DNF) {
+                        count++;
+                    }
+                }
+                return count;
             }
+            return 0;
         } catch (Exception e) {
             android.util.Log.e("PlayerMainActivity", "Failed to load finished race count", e);
             return 0;

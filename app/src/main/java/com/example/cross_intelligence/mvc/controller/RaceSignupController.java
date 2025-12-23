@@ -52,6 +52,17 @@ public class RaceSignupController {
         }
 
         try {
+            // 检查赛事是否已结束
+            Race race = realm.where(Race.class)
+                    .equalTo("raceId", raceId)
+                    .findFirst();
+            if (race != null && race.getEndTime() != null) {
+                java.util.Date now = new java.util.Date();
+                if (race.getEndTime().before(now)) {
+                    return false; // 赛事已结束，无法报名
+                }
+            }
+            
             realm.beginTransaction();
 
             // 检查是否已报名
@@ -217,6 +228,53 @@ public class RaceSignupController {
                 raceIds.add(signup.getRaceId());
             }
             return raceIds;
+        } finally {
+            queryRealm.close();
+        }
+    }
+
+    /**
+     * 获取某个赛事的所有报名记录
+     * @param raceId 赛事ID
+     * @return 报名记录列表
+     */
+    @NonNull
+    public List<RaceSignup> getRaceSignups(@NonNull String raceId) {
+        Realm queryRealm = Realm.getDefaultInstance();
+        try {
+            RealmResults<RaceSignup> signups = queryRealm.where(RaceSignup.class)
+                    .equalTo("raceId", raceId)
+                    .findAll();
+            return queryRealm.copyFromRealm(signups);
+        } finally {
+            queryRealm.close();
+        }
+    }
+
+    /**
+     * 根据报名时间先后为选手计算号码布序号（从1开始）
+     * 同一赛事内按 signupTime 升序排序；若时间为空则排在后面。
+     *
+     * @param raceId 赛事ID
+     * @param userId 选手ID
+     * @return 序号（1 开始），如果未报名则返回 0
+     */
+    public int getUserSequenceNumber(@NonNull String raceId, @NonNull String userId) {
+        Realm queryRealm = Realm.getDefaultInstance();
+        try {
+            RealmResults<RaceSignup> signups = queryRealm.where(RaceSignup.class)
+                    .equalTo("raceId", raceId)
+                    .findAll()
+                    .sort("signupTime"); // 按报名时间排序（最早在前）
+
+            int index = 1;
+            for (RaceSignup signup : signups) {
+                if (userId.equals(signup.getUserId())) {
+                    return index;
+                }
+                index++;
+            }
+            return 0;
         } finally {
             queryRealm.close();
         }

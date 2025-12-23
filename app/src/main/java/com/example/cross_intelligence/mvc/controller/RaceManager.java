@@ -43,14 +43,19 @@ public class RaceManager {
         void onError(@NonNull Throwable error);
     }
 
+    public interface DeleteCallback {
+        void onSuccess();
+        void onError(@NonNull Throwable error);
+    }
+
     public void createRace(String name, String description, Date start, Date end, List<CheckPointData> pointsData, String organizerId, @NonNull SaveCallback callback) {
-        createRaceWithId(UUID.randomUUID().toString(), name, description, start, end, pointsData, organizerId, callback);
+        createRaceWithId(UUID.randomUUID().toString(), name, description, start, end, pointsData, organizerId, null, callback);
     }
 
     /**
      * 使用指定 ID 创建赛事（用于二维码生成）
      */
-    public void createRaceWithId(String raceId, String name, String description, Date start, Date end, List<CheckPointData> pointsData, String organizerId, @NonNull SaveCallback callback) {
+    public void createRaceWithId(String raceId, String name, String description, Date start, Date end, List<CheckPointData> pointsData, String organizerId, String thumbnailPath, @NonNull SaveCallback callback) {
         Realm realm = Realm.getDefaultInstance();
         realm.executeTransactionAsync(
             bgRealm -> {
@@ -69,6 +74,7 @@ public class RaceManager {
                 race.setOrganizerId(organizerId);
                 race.setCreateTime(new Date()); // 设置创建时间
                 race.setSequenceNumber(sequenceNumber); // 设置序号
+                race.setThumbnailPath(thumbnailPath); // 设置缩略图路径
                 
                 // 在后台线程创建 CheckPoint 对象
                 RealmList<CheckPoint> realmPoints = new RealmList<>();
@@ -155,7 +161,7 @@ public class RaceManager {
     /**
      * 删除指定赛事
      */
-    public void deleteRace(@NonNull String raceId) {
+    public void deleteRace(@NonNull String raceId, @NonNull DeleteCallback callback) {
         Realm realm = Realm.getDefaultInstance();
         realm.executeTransactionAsync(
             bgRealm -> {
@@ -171,12 +177,33 @@ public class RaceManager {
                     race.deleteFromRealm();
                 }
             },
-            realm::close,
+            () -> {
+                realm.close();
+                callback.onSuccess();
+            },
             error -> {
                 realm.close();
                 error.printStackTrace();
+                callback.onError(error);
             }
         );
+    }
+
+    /**
+     * 删除指定赛事（无回调，兼容旧代码）
+     */
+    public void deleteRace(@NonNull String raceId) {
+        deleteRace(raceId, new DeleteCallback() {
+            @Override
+            public void onSuccess() {
+                // 无操作
+            }
+
+            @Override
+            public void onError(@NonNull Throwable error) {
+                // 无操作
+            }
+        });
     }
 
     /**
@@ -227,7 +254,7 @@ public class RaceManager {
     /**
      * 更新赛事信息
      */
-    public void updateRace(@NonNull String raceId, String name, String description, Date start, Date end, List<CheckPointData> pointsData, @NonNull SaveCallback callback) {
+    public void updateRace(@NonNull String raceId, String name, String description, Date start, Date end, List<CheckPointData> pointsData, String thumbnailPath, @NonNull SaveCallback callback) {
         Realm realm = Realm.getDefaultInstance();
         realm.executeTransactionAsync(
             bgRealm -> {
@@ -239,6 +266,9 @@ public class RaceManager {
                     race.setDescription(description != null ? description : "");
                     race.setStartTime(start);
                     race.setEndTime(end);
+                    if (thumbnailPath != null) {
+                        race.setThumbnailPath(thumbnailPath); // 更新缩略图路径
+                    }
                     
                     // 删除旧的打卡点
                     if (race.getCheckPoints() != null) {

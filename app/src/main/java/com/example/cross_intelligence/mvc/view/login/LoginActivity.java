@@ -8,12 +8,12 @@ import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.View;
 import android.view.Window;
+import android.view.WindowInsetsController;
 import android.view.WindowManager;
 import android.view.animation.CycleInterpolator;
 import android.widget.ArrayAdapter;
 
 import androidx.annotation.NonNull;
-import androidx.appcompat.app.AlertDialog;
 import androidx.core.content.ContextCompat;
 
 import com.example.cross_intelligence.R;
@@ -24,7 +24,6 @@ import com.example.cross_intelligence.mvc.model.User;
 import com.example.cross_intelligence.mvc.util.PreferenceUtil;
 import com.example.cross_intelligence.mvc.util.UIUtil;
 import com.example.cross_intelligence.mvc.view.admin.AdminMainActivity;
-import com.example.cross_intelligence.mvc.view.profile.UserSettingsActivity;
 
 import java.util.Arrays;
 import java.util.List;
@@ -54,7 +53,7 @@ public class LoginActivity extends BaseActivity {
     }
     
     /**
-     * 设置沉浸式状态栏
+     * 设置状态栏：白色背景，深色图标
      */
     private void setupImmersiveStatusBar() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
@@ -62,34 +61,42 @@ public class LoginActivity extends BaseActivity {
             window.clearFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS);
             window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
             
-            // 设置状态栏为透明，让背景延伸到顶部
-            window.setStatusBarColor(ContextCompat.getColor(this, android.R.color.transparent));
+            // 设置状态栏为白色
+            window.setStatusBarColor(ContextCompat.getColor(this, android.R.color.white));
             
             // Android 6.0+ 根据背景颜色设置状态栏图标颜色
-            // 由于我们的背景是深色渐变，使用浅色图标
+            // 白色背景使用深色图标
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 View decorView = window.getDecorView();
-                // 不设置 LIGHT_STATUS_BAR，使用浅色（白色）图标
-                decorView.setSystemUiVisibility(
-                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE | 
-                    View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                );
+                // 使用新的 WindowInsetsController API (Android 11+)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    window.getInsetsController().setSystemBarsAppearance(
+                        WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS,
+                        WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
+                    );
+                } else {
+                    // 兼容旧版本 (Android 6.0 - 10)
+                    decorView.setSystemUiVisibility(
+                        View.SYSTEM_UI_FLAG_LAYOUT_STABLE | 
+                        View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR
+                    );
+                }
             }
         }
     }
 
     @Override
     protected void initView() {
+        // 角色下拉框设置：MaterialAutoCompleteTextView 已内置更好的交互
         ArrayAdapter<String> roleAdapter = new ArrayAdapter<>(this, R.layout.item_dropdown_role, roleOptions);
         binding.actRole.setAdapter(roleAdapter);
-        binding.actRole.setOnClickListener(v -> binding.actRole.showDropDown());
-        binding.actRole.setOnFocusChangeListener((v, hasFocus) -> {
-            if (hasFocus) {
-                binding.actRole.showDropDown();
-            }
-        });
-        binding.tilRole.setEndIconOnClickListener(v -> binding.actRole.showDropDown());
-        binding.tilRole.setOnClickListener(v -> binding.actRole.showDropDown());
+        // 设置弹出菜单的垂直偏移，使其与输入框有适当间距
+        binding.actRole.setDropDownVerticalOffset(4);
+        // MaterialAutoCompleteTextView 会自动处理点击和焦点事件
+        
+        // 密码显示/隐藏图标切换
+        binding.tilPassword.setEndIconOnClickListener(v -> togglePasswordVisibility());
+        
         binding.btnLogin.setOnClickListener(v -> {
             // 按钮点击动画
             animateButtonClick(binding.btnLogin);
@@ -100,6 +107,24 @@ public class LoginActivity extends BaseActivity {
             Intent intent = new Intent(LoginActivity.this, com.example.cross_intelligence.mvc.view.register.RegisterActivity.class);
             startActivity(intent);
         });
+    }
+    
+    /**
+     * 切换密码可见性
+     */
+    private void togglePasswordVisibility() {
+        boolean isPasswordVisible = binding.etPassword.getTransformationMethod() == null;
+        if (isPasswordVisible) {
+            // 隐藏密码
+            binding.etPassword.setTransformationMethod(android.text.method.PasswordTransformationMethod.getInstance());
+            binding.tilPassword.setEndIconDrawable(R.drawable.ic_visibility_off);
+        } else {
+            // 显示密码
+            binding.etPassword.setTransformationMethod(null);
+            binding.tilPassword.setEndIconDrawable(R.drawable.ic_visibility);
+        }
+        // 将光标移到文本末尾
+        binding.etPassword.setSelection(binding.etPassword.getText() != null ? binding.etPassword.getText().length() : 0);
     }
 
     @Override
@@ -166,7 +191,8 @@ public class LoginActivity extends BaseActivity {
                     } else if ("选手".equals(role)) {
                         target = com.example.cross_intelligence.mvc.view.player.PlayerMainActivity.class;
                     } else {
-                        target = UserSettingsActivity.class;
+                        // 未知角色，默认跳转到管理员主页
+                        target = AdminMainActivity.class;
                     }
                     Intent intent = new Intent(LoginActivity.this, target);
                     startActivity(intent);
