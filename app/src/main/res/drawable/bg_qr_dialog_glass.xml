@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 玻璃拟态效果背景 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="#E5FFFFFF" />
+    <corners android:radius="24dp" />
+    <stroke
+        android:width="1dp"
+        android:color="#30FFFFFF" />
+</shape>
+
+
+
+
+
+
+

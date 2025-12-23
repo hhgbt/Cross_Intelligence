@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 已结束已报名按钮白底绿框样式（与进行中已报名保持一致） -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="@android:color/white" />
+    <stroke
+        android:width="2dp"
+        android:color="#4CAF50" />
+    <corners android:radius="20dp" />
+</shape>
+
+
+
+
