@@ -15,7 +15,6 @@ import androidx.test.ext.junit.runners.AndroidJUnit4;
 
 import com.example.cross_intelligence.R;
 import com.example.cross_intelligence.mvc.view.login.LoginActivity;
-import com.example.cross_intelligence.mvc.view.result.LeaderboardActivity;
 
 import org.junit.After;
 import org.junit.Before;
@@ -42,14 +41,7 @@ public class UiAppearanceTest {
         }
     }
 
-    @Test
-    public void leaderboardLandscape_showsRecycler() {
-        Intent intent = new Intent(ApplicationProvider.getApplicationContext(), LeaderboardActivity.class);
-        intent.putExtra(LeaderboardActivity.EXTRA_RACE_ID, "race-ui");
-        try (ActivityScenario<LeaderboardActivity> scenario = ActivityScenario.launch(intent)) {
-            scenario.onActivity(activity -> activity.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE));
-            onView(withId(R.id.tvEmpty)).check(matches(isDisplayed()));
-        }
-    }
+    // 旧版排行榜 LeaderboardActivity 已被移除，且当前项目使用管理员结果页替代。
+    // 为避免依赖已删除的 Activity，这里的相关 UI 测试一并移除，仅保留登录页暗色模式的可见性检查。
 }
 

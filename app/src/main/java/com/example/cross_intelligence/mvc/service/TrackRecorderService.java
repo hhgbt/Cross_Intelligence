@@ -49,7 +49,6 @@ public class TrackRecorderService extends Service implements AMapLocationListene
     private TrackManager trackManager;
     private String currentRaceId;
     private String currentUserId;
-    private Handler handler;
 
     // 用于轨迹广播
     public static final String ACTION_TRACK_UPDATE = "com.example.cross_intelligence.TRACK_UPDATE";
@@ -74,7 +73,7 @@ public class TrackRecorderService extends Service implements AMapLocationListene
         super.onCreate();
         Log.d(TAG, "TrackRecorderService onCreate");
         trackManager = new TrackManager();
-        handler = new Handler(Looper.getMainLooper());
+        new Handler(Looper.getMainLooper());
         initLocationClient();
         createNotificationChannel();
     }
@@ -334,7 +333,6 @@ public class TrackRecorderService extends Service implements AMapLocationListene
             locationClient = null;
         }
         trackManager = null;
-        handler = null;
     }
 
     @Nullable

@@ -27,6 +27,9 @@ import io.realm.RealmResults;
  */
 public class CheckInManager {
 
+    public void checkIn(String race1, String user1, CheckPoint point, double v, double v1, String s, boolean b, CheckInCallback checkInCallback) {
+    }
+
     public interface CheckInCallback {
         void onSuccess(@NonNull CheckInRecord record);
 

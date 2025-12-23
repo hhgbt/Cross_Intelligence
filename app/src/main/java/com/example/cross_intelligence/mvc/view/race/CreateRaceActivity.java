@@ -1302,49 +1302,42 @@ public class CreateRaceActivity extends BaseActivity implements
             android.util.Log.d("CreateRaceActivity", "路线已重新绘制，包含 " + routePoints.size() + " 个点");
         }
         
-        // 5. 计算合适的 Padding（使用屏幕宽度的百分比，确保100%截全）
-        // 越野赛路线长，需要给地图四周留出足够边距（屏幕宽度的15%），避免打卡点贴在边框上
-        int mapWidth = binding.mapView.getWidth();
-        int mapHeight = binding.mapView.getHeight();
-        int padding = mapWidth > 0 ? (int) (mapWidth * 0.15) : (int) (300 * getResources().getDisplayMetrics().density);
-        
-        // 计算打卡点之间的最大距离，用于日志记录
+        // 5. 使用 moveCamera 调整视野，增加边距以确保所有打卡点和轨迹线都完整显示
+        // 对于长距离越野赛，使用更大的边距（根据距离动态调整）
+        // 计算打卡点之间的距离，如果距离很远，使用更大的边距
         double maxDistance = calculateMaxDistance(sortedPoints);
+        int padding = maxDistance > 5000 ? 400 : 300; // 距离超过5km使用400dp边距，否则300dp
+        padding = (int) (padding * getResources().getDisplayMetrics().density);
         
-        android.util.Log.d("CreateRaceActivity", "地图尺寸: " + mapWidth + "x" + mapHeight + "，最大距离: " + String.format("%.2f", maxDistance) + " 米，使用边距: " + padding + " 像素");
+        android.util.Log.d("CreateRaceActivity", "最大距离: " + maxDistance + " 米，使用边距: " + padding + " 像素");
         
-        // 6. 核心修复：临时解绑 Camera 监听器，避免干扰
-        aMap.setOnCameraChangeListener(null);
-        
-        // 7. 使用 moveCamera（瞬间切换状态），不要用 animateCamera
-        // moveCamera 是同步设置状态，虽然渲染异步，但比动画更易控制
         CameraUpdate cameraUpdate = CameraUpdateFactory.newLatLngBounds(bounds, padding);
         aMap.moveCamera(cameraUpdate);
         
-        android.util.Log.d("CreateRaceActivity", "moveCamera 已调用，等待渲染完成...");
-        
-        // 8. 给长距离路线更多的加载时间（1000ms），确保远距离的瓦片和 Polyline 渲染完成
+        // 6. moveCamera 是即时的，但渲染需要时间，给足够的时间让轨迹线完全渲染
+        // 对于长距离路线，需要更长的渲染时间
         binding.mapView.postDelayed(() -> {
             // 再次检查地图状态
             boolean isShown = binding.mapView.isShown();
-            int currentMapHeight = binding.mapView.getHeight();
+            int mapHeight = binding.mapView.getHeight();
             
-            // 记录当前相机位置，用于调试
-            CameraPosition cameraPos = aMap.getCameraPosition();
-            android.util.Log.d("CreateRaceActivity", "准备截图前检查 - isShown: " + isShown + ", mapHeight: " + currentMapHeight);
-            android.util.Log.d("CreateRaceActivity", "当前缩放等级: " + cameraPos.zoom + ", 中心点: " + cameraPos.target.toString());
+            android.util.Log.d("CreateRaceActivity", "准备截图前检查 - isShown: " + isShown + ", mapHeight: " + mapHeight);
             
-            if (!isShown || currentMapHeight <= 0) {
+            if (!isShown || mapHeight <= 0) {
                 android.util.Log.w("CreateRaceActivity", "地图仍然不可见或高度为0，尝试再次延迟");
                 binding.mapView.postDelayed(() -> {
                     performActualScreenshot(raceId, name, description, start, end, organizerId, hasSaved, wasCollapsed, mapCardVisibility, mapViewVisibility);
                 }, 500);
             } else {
-                // 再次确认相机位置（可选，防止 moveCamera 没到位）
-                android.util.Log.d("CreateRaceActivity", "正在执行长距离路线截图...");
-                performActualScreenshot(raceId, name, description, start, end, organizerId, hasSaved, wasCollapsed, mapCardVisibility, mapViewVisibility);
+                // 再等待一下，确保轨迹线完全渲染（特别是长距离路线）
+                // 根据距离动态调整等待时间
+                long delay = maxDistance > 5000 ? 600 : 400;
+                android.util.Log.d("CreateRaceActivity", "等待 " + delay + "ms 确保轨迹渲染完成");
+                binding.mapView.postDelayed(() -> {
+                    performActualScreenshot(raceId, name, description, start, end, organizerId, hasSaved, wasCollapsed, mapCardVisibility, mapViewVisibility);
+                }, delay);
             }
-        }, 1000); // 1000ms 延迟，确保长距离路线的瓦片和轨迹完全渲染
+        }, 1000); // 增加到 1000ms，给 GL 线程更多时间完成 moveCamera 后的渲染
     }
     
     /**
@@ -1392,16 +1385,8 @@ public class CreateRaceActivity extends BaseActivity implements
         aMap.getMapScreenShot(new AMap.OnMapScreenShotListener() {
             @Override
             public void onMapScreenShot(Bitmap bitmap) {
-                // 记录截图时的相机状态，用于调试
-                CameraPosition cp = aMap.getCameraPosition();
                 android.util.Log.d("CreateRaceActivity", "========== 地图截图回调触发 ==========");
-                android.util.Log.d("CreateRaceActivity", "截图时缩放等级: " + cp.zoom + ", 中心点: " + cp.target.toString());
-                
-                if (bitmap != null) {
-                    android.util.Log.d("CreateRaceActivity", "截图成功，尺寸: " + bitmap.getWidth() + "x" + bitmap.getHeight());
-                } else {
-                    android.util.Log.e("CreateRaceActivity", "截图返回 Bitmap 为 null");
-                }
+                android.util.Log.d("CreateRaceActivity", "bitmap: " + (bitmap != null ? ("非空，尺寸: " + bitmap.getWidth() + "x" + bitmap.getHeight()) : "空"));
                 
                 // 截图完成后，恢复地图的可见性状态（如果原本是收起状态）
                 if (wasCollapsed && binding.mapCardContainer.getVisibility() == View.VISIBLE) {

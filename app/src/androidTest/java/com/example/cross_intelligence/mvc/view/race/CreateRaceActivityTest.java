@@ -92,7 +92,8 @@ public class CreateRaceActivityTest {
     }
 
     private void addPoint(String name, String lat, String lng) {
-        onView(withId(R.id.btnAddManual)).perform(click());
+        // 按钮 id 已在布局中重命名为 btnManualAddCheckpoint，这里同步更新
+        onView(withId(R.id.btnManualAddCheckpoint)).perform(click());
         onView(withId(R.id.etName)).inRoot(isDialog()).perform(replaceText(name));
         onView(withId(R.id.etLatitude)).inRoot(isDialog()).perform(replaceText(lat));
         onView(withId(R.id.etLongitude)).inRoot(isDialog()).perform(replaceText(lng), closeSoftKeyboard());

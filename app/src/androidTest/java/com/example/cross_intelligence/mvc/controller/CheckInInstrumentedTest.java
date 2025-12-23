@@ -64,7 +64,7 @@ public class CheckInInstrumentedTest {
                 30.0000, 120.0000, "QR-123", true,
                 new CheckInManager.CheckInCallback() {
                     @Override
-                    public void onSuccess(@NonNull @NonNull CheckInRecord record) {
+                    public void onSuccess(@NonNull CheckInRecord record) {
                         resultHolder[0] = record;
                         latch.countDown();
                     }

@@ -14,6 +14,7 @@ import com.amap.api.maps.model.Marker;
 import com.amap.api.maps.model.MarkerOptions;
 import com.amap.api.maps.model.Polyline;
 import com.example.cross_intelligence.mvc.model.CheckPoint;
+import com.example.cross_intelligence.mvc.model.TrackPoint;
 
 import org.junit.Before;
 import org.junit.Test;

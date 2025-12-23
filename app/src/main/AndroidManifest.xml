@@ -37,6 +37,7 @@
     <uses-permission android:name="android.permission.ACCESS_LOCATION_EXTRA_COMMANDS" />
 
     <!--允许写设备缓存，用于问题排查-->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.WRITE_SETTINGS" />
 
     <!-- 保存二维码到相册（Android 9 及以下需要） -->

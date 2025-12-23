@@ -218,12 +218,8 @@ public class RaceDiscoveryAdapter extends RecyclerView.Adapter<RaceDiscoveryAdap
                     && signupController.isUserSignedUp(userId, race.getRaceId());
             updateStatusAndButton(status, isSignedUp, race);
 
-            // 报名按钮点击（只有可点击时才响应）
+            // 报名按钮点击
             btnSignup.setOnClickListener(v -> {
-                // 如果按钮不可点击（如"不可报名"或"已报名"状态），不执行任何操作
-                if (!btnSignup.isEnabled()) {
-                    return;
-                }
                 if (listener != null) {
                     listener.onSignupClick(race);
                 }
@@ -265,24 +261,23 @@ public class RaceDiscoveryAdapter extends RecyclerView.Adapter<RaceDiscoveryAdap
             android.content.Context context = itemView.getContext();
             Drawable gradientBg = ContextCompat.getDrawable(context, R.drawable.bg_button_signup_gradient);
             Drawable signedBg = ContextCompat.getDrawable(context, R.drawable.bg_button_signup_signed);
+            Drawable disabledBg = ContextCompat.getDrawable(context, R.drawable.bg_button_signup_disabled);
             
             switch (status) {
                 case NOT_STARTED:
                     tvStatusTag.setText("未开始");
                     tvStatusTag.setBackgroundResource(R.drawable.bg_status_tag_not_started);
                     tvStatusTag.setVisibility(View.VISIBLE);
-                    // 未开始状态：显示"不可报名"按钮，灰色，不可点击
+                    // 未开始状态：显示“不可报名”灰色按钮，不可点击
                     btnSignup.setVisibility(View.VISIBLE);
                     btnSignup.setText("不可报名");
-                    // 使用灰色样式（白底灰字，和已结束已报名类似但颜色不同）
-                    if (signedBg != null) {
-                        btnSignup.setBackground(signedBg);
+                    if (disabledBg != null) {
+                        btnSignup.setBackground(disabledBg);
                     } else {
-                        btnSignup.setBackgroundResource(R.drawable.bg_button_signup_signed);
+                        btnSignup.setBackgroundResource(R.drawable.bg_button_signup_disabled);
                     }
-                    btnSignup.setTextColor(ContextCompat.getColor(context, android.R.color.darker_gray)); // 灰色文字
-                    btnSignup.setEnabled(false); // 不可点击
-                    btnSignup.setClickable(false); // 明确设置为不可点击
+                    btnSignup.setTextColor(ContextCompat.getColor(context, R.color.text_secondary));
+                    btnSignup.setEnabled(false);
                     break;
                     
                 case ONGOING:

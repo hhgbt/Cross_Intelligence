@@ -61,7 +61,7 @@ public class CheckInManagerTest {
         AtomicBoolean success = new AtomicBoolean(false);
         manager.checkIn("race1", "user1", point,
                 point.getLatitude(), point.getLongitude(),
-                "QR-001", false,
+                "QR-001",
                 new CheckInManager.CheckInCallback() {
                     @Override
                     public void onSuccess(@NonNull CheckInRecord record) {
@@ -84,7 +84,7 @@ public class CheckInManagerTest {
         AtomicBoolean failed = new AtomicBoolean(false);
         manager.checkIn("race1", "user1", point,
                 point.getLatitude() + 1, point.getLongitude() + 1,
-                "QR-001", false,
+                "QR-001",
                 new CheckInManager.CheckInCallback() {
                     @Override
                     public void onSuccess(@NonNull CheckInRecord record) {
@@ -105,7 +105,7 @@ public class CheckInManagerTest {
         AtomicBoolean failed = new AtomicBoolean(false);
         manager.checkIn("race1", "user1", point,
                 point.getLatitude(), point.getLongitude(),
-                "WRONG", false,
+                "WRONG",
                 new CheckInManager.CheckInCallback() {
                     @Override
                     public void onSuccess(@NonNull CheckInRecord record) {

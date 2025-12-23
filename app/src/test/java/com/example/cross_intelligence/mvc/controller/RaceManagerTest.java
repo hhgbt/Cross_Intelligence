@@ -9,6 +9,8 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import androidx.annotation.NonNull;
+
 import com.example.cross_intelligence.mvc.model.CheckPoint;
 import com.example.cross_intelligence.mvc.model.Race;
 
@@ -36,12 +38,25 @@ public class RaceManagerTest {
             realmStatic.when(Realm::getDefaultInstance).thenReturn(realm);
 
             manager.createRace("校园赛",
+                    "测试赛事描述",
                     new Date(),
                     new Date(System.currentTimeMillis() + 3600_000),
-                    mockPoints(2));
+                    mockPointsData(2),
+                    "organizer1",
+                    new RaceManager.SaveCallback() {
+                        @Override
+                        public void onSuccess() {
+                            // 测试成功
+                        }
 
-            assertTrue(executedTransaction);
+                        @Override
+                        public void onError(@NonNull Throwable error) {
+                            throw new AssertionError(error);
+                        }
+                    });
         }
+
+        assertTrue(executedTransaction.get());
     }
 
     @Test
@@ -63,7 +78,8 @@ public class RaceManagerTest {
 
     private Realm mockRealm() {
         Realm realm = mock(Realm.class);
-        when(realm.copyFromRealm(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(realm.copyFromRealm(any(Iterable.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(realm.copyFromRealm(any(Race.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         Race race = new Race();
         when(realm.createObject(eq(Race.class), anyString())).thenReturn(race);
@@ -100,15 +116,19 @@ public class RaceManagerTest {
         return realm;
     }
 
-    private List<CheckPoint> mockPoints(int count) {
-        List<CheckPoint> list = new ArrayList<>();
+    private List<RaceManager.CheckPointData> mockPointsData(int count) {
+        List<RaceManager.CheckPointData> list = new ArrayList<>();
         for (int i = 0; i < count; i++) {
-            CheckPoint point = new CheckPoint();
-            point.setCheckPointId("cp" + i);
-            point.setName("P" + i);
-            point.setLatitude(30 + i);
-            point.setLongitude(120 + i);
-            list.add(point);
+            RaceManager.CheckPointData data = new RaceManager.CheckPointData();
+            data.checkPointId = "cp" + i;
+            data.name = "P" + i;
+            data.latitude = 30 + i;
+            data.longitude = 120 + i;
+            data.type = "检查点";
+            data.checkRadius = 50.0;
+            data.orderIndex = i;
+            data.qrCodePayload = "QR-" + i;
+            list.add(data);
         }
         return list;
     }
