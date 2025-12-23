@@ -143,6 +143,12 @@ public class MapThumbnailUtil {
                                                   @NonNull String raceId,
                                                   @NonNull Bitmap bitmap) {
         try {
+            // 增加安全检查
+            if (bitmap == null || bitmap.isRecycled()) {
+                android.util.Log.e("MapThumbnailUtil", "Bitmap is null or recycled, cannot save.");
+                return null;
+            }
+
             // 保存到应用的内部存储
             File thumbnailsDir = new File(context.getFilesDir(), "race_thumbnails");
             if (!thumbnailsDir.exists()) {
@@ -151,12 +157,17 @@ public class MapThumbnailUtil {
 
             File thumbnailFile = new File(thumbnailsDir, raceId + "_thumbnail.png");
             try (FileOutputStream fos = new FileOutputStream(thumbnailFile)) {
+                // 再次检查，防止在 IO 准备期间 bitmap 被回收
+                if (bitmap.isRecycled()) {
+                     android.util.Log.e("MapThumbnailUtil", "Bitmap recycled before compression.");
+                     return null;
+                }
                 bitmap.compress(Bitmap.CompressFormat.PNG, 90, fos);
                 fos.flush();
             }
 
             return thumbnailFile.getAbsolutePath();
-        } catch (IOException e) {
+        } catch (Exception e) { // 捕获所有异常，包括 IllegalStateException
             e.printStackTrace();
             return null;
         }

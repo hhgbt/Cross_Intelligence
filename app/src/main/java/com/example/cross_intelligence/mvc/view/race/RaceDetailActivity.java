@@ -456,7 +456,7 @@ public class RaceDetailActivity extends BaseActivity {
                         
                         @Override
                         public void onMapScreenShot(Bitmap bitmap, int i) {
-                            onMapScreenShot(bitmap);
+                            // 这里留空！不要调用上面的方法
                         }
                     });
                 });

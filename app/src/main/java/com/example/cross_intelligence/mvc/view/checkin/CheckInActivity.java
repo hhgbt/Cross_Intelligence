@@ -1123,8 +1123,7 @@ public class CheckInActivity extends BaseActivity implements
             
             @Override
             public void onMapScreenShot(Bitmap bitmap, int i) {
-                // 兼容旧版本接口
-                onMapScreenShot(bitmap);
+                // 兼容旧版本接口，但为了防止双重触发，这里留空
             }
         });
     }

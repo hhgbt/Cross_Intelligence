@@ -1,6 +1,5 @@
 package com.example.cross_intelligence.mvc.view.race;
 
-import android.animation.ValueAnimator;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
@@ -33,21 +32,18 @@ import com.amap.api.maps.CameraUpdateFactory;
 import com.amap.api.maps.MapView;
 import android.graphics.Point;
 
-import com.amap.api.maps.model.CameraPosition;
 import com.amap.api.maps.model.LatLng;
 import com.amap.api.maps.model.LatLngBounds;
 import com.amap.api.maps.model.Marker;
 import com.amap.api.maps.model.MarkerOptions;
 import com.amap.api.maps.model.Polyline;
 import com.amap.api.maps.model.PolylineOptions;
-import com.amap.api.services.core.LatLonPoint;
 import com.amap.api.services.help.Inputtips;
 import com.amap.api.services.help.InputtipsQuery;
 import com.amap.api.services.help.Tip;
 import com.amap.api.services.core.AMapException;
 import com.example.cross_intelligence.R;
 import com.example.cross_intelligence.databinding.ActivityCreateRaceBinding;
-import com.example.cross_intelligence.databinding.DialogCheckpointBinding;
 import com.example.cross_intelligence.mvc.base.BaseActivity;
 import com.example.cross_intelligence.mvc.controller.RaceManager;
 import com.example.cross_intelligence.mvc.location.MapLocationManager;
@@ -70,11 +66,9 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -1303,41 +1297,46 @@ public class CreateRaceActivity extends BaseActivity implements
         }
         
         // 5. 使用 moveCamera 调整视野，增加边距以确保所有打卡点和轨迹线都完整显示
-        // 对于长距离越野赛，使用更大的边距（根据距离动态调整）
-        // 计算打卡点之间的距离，如果距离很远，使用更大的边距
-        double maxDistance = calculateMaxDistance(sortedPoints);
-        int padding = maxDistance > 5000 ? 400 : 300; // 距离超过5km使用400dp边距，否则300dp
-        padding = (int) (padding * getResources().getDisplayMetrics().density);
+        // 动态计算安全边距：不超过地图短边的 20%，防止溢出
+        // 你的日志显示地图高度为 611px，而你之前计算的 padding 达到了 611px (300dp * density)，这导致 padding 占满了整个屏幕，地图无法正确显示
+        int mapWidth = binding.mapView.getWidth();
+        int mapHeight = binding.mapView.getHeight();
+        if (mapWidth <= 0 || mapHeight <= 0) {
+            mapWidth = 800; // 默认值
+            mapHeight = 600; // 默认值
+        }
         
-        android.util.Log.d("CreateRaceActivity", "最大距离: " + maxDistance + " 米，使用边距: " + padding + " 像素");
+        // 计算安全边距：取宽高的较小值的 20%
+        int safePadding = (int) (Math.min(mapWidth, mapHeight) * 0.2);
         
-        CameraUpdate cameraUpdate = CameraUpdateFactory.newLatLngBounds(bounds, padding);
-        aMap.moveCamera(cameraUpdate);
+        // 确保最小边距为 50px，最大不超过 200px (避免过大)
+        safePadding = Math.max(50, Math.min(safePadding, 200));
         
-        // 6. moveCamera 是即时的，但渲染需要时间，给足够的时间让轨迹线完全渲染
-        // 对于长距离路线，需要更长的渲染时间
-        binding.mapView.postDelayed(() -> {
-            // 再次检查地图状态
-            boolean isShown = binding.mapView.isShown();
-            int mapHeight = binding.mapView.getHeight();
-            
-            android.util.Log.d("CreateRaceActivity", "准备截图前检查 - isShown: " + isShown + ", mapHeight: " + mapHeight);
-            
-            if (!isShown || mapHeight <= 0) {
-                android.util.Log.w("CreateRaceActivity", "地图仍然不可见或高度为0，尝试再次延迟");
+        android.util.Log.d("CreateRaceActivity", "地图尺寸: " + mapWidth + "x" + mapHeight + ", 计算的安全边距: " + safePadding + " px");
+        
+        CameraUpdate cameraUpdate = CameraUpdateFactory.newLatLngBounds(bounds, safePadding);
+        
+        // 关键修复：使用回调确保动画完成后再截图
+        // 不要使用 postDelayed，因为不同设备性能差异很大
+        aMap.animateCamera(cameraUpdate, 1000, new AMap.CancelableCallback() {
+            @Override
+            public void onFinish() {
+                android.util.Log.d("CreateRaceActivity", "animateCamera 动画完成，准备截图");
+                // 动画完成后，再等待一小会儿确保渲染稳定
                 binding.mapView.postDelayed(() -> {
                     performActualScreenshot(raceId, name, description, start, end, organizerId, hasSaved, wasCollapsed, mapCardVisibility, mapViewVisibility);
-                }, 500);
-            } else {
-                // 再等待一下，确保轨迹线完全渲染（特别是长距离路线）
-                // 根据距离动态调整等待时间
-                long delay = maxDistance > 5000 ? 600 : 400;
-                android.util.Log.d("CreateRaceActivity", "等待 " + delay + "ms 确保轨迹渲染完成");
-                binding.mapView.postDelayed(() -> {
-                    performActualScreenshot(raceId, name, description, start, end, organizerId, hasSaved, wasCollapsed, mapCardVisibility, mapViewVisibility);
-                }, delay);
+                }, 300);
             }
-        }, 1000); // 增加到 1000ms，给 GL 线程更多时间完成 moveCamera 后的渲染
+
+            @Override
+            public void onCancel() {
+                android.util.Log.w("CreateRaceActivity", "animateCamera 动画被取消，强行截图");
+                performActualScreenshot(raceId, name, description, start, end, organizerId, hasSaved, wasCollapsed, mapCardVisibility, mapViewVisibility);
+            }
+        });
+        
+        // 计算打卡点之间的距离，如果距离很远，使用更大的边距（用于后续判断渲染延迟）
+        double maxDistance = calculateMaxDistance(sortedPoints);
     }
     
     /**
@@ -1382,9 +1381,23 @@ public class CreateRaceActivity extends BaseActivity implements
                                          boolean wasCollapsed, int mapCardVisibility, int mapViewVisibility) {
         android.util.Log.d("CreateRaceActivity", "开始调用 getMapScreenShot");
         
+        // 使用原子布尔值来确保只处理一次回调
+        final java.util.concurrent.atomic.AtomicBoolean callbackHandled = new java.util.concurrent.atomic.AtomicBoolean(false);
+        
         aMap.getMapScreenShot(new AMap.OnMapScreenShotListener() {
             @Override
             public void onMapScreenShot(Bitmap bitmap) {
+                // 如果已经处理过回调，直接返回
+                if (callbackHandled.getAndSet(true)) {
+                    android.util.Log.w("CreateRaceActivity", "重复触发 onMapScreenShot(Bitmap)，已忽略");
+                    // 严重注意：绝对不能在这里 recycle bitmap！
+                    // 因为高德 SDK 可能在两次回调中传递的是同一个 Bitmap 实例
+                    // 如果我们在第一次回调中正在使用（复制）这个 bitmap，而在这里把它 recycle 了，
+                    // 就会导致 copy 操作或者后续操作崩溃！
+                    // 让 GC 去处理多余的引用即可。
+                    return;
+                }
+
                 android.util.Log.d("CreateRaceActivity", "========== 地图截图回调触发 ==========");
                 android.util.Log.d("CreateRaceActivity", "bitmap: " + (bitmap != null ? ("非空，尺寸: " + bitmap.getWidth() + "x" + bitmap.getHeight()) : "空"));
                 
@@ -1407,7 +1420,30 @@ public class CreateRaceActivity extends BaseActivity implements
             
             @Override
             public void onMapScreenShot(Bitmap bitmap, int i) {
-                onMapScreenShot(bitmap);
+                // 某些版本的 SDK 可能会同时触发两个回调，或者优先触发这个带参数的
+                // 这里的处理逻辑应该与上面一致，但必须经过原子锁检查
+                
+                // 如果已经处理过回调，直接返回
+                if (callbackHandled.getAndSet(true)) {
+                    android.util.Log.w("CreateRaceActivity", "重复触发 onMapScreenShot(Bitmap, int)，已忽略");
+                    // 严重注意：绝对不能在这里 recycle bitmap！
+                    // 因为高德 SDK 可能在两次回调中传递的是同一个 Bitmap 实例
+                    // 如果我们在第一次回调中正在使用（复制）这个 bitmap，而在这里把它 recycle 了，
+                    // 就会导致 copy 操作或者后续操作崩溃！
+                    // 让 GC 去处理多余的引用即可。
+                    return;
+                }
+                
+                android.util.Log.d("CreateRaceActivity", "========== 地图截图回调触发 (带参数) ==========");
+                // 手动调用处理逻辑
+                
+                if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
+                    handleScreenshotResult(bitmap, raceId, name, description, start, end, organizerId, hasSaved);
+                } else {
+                    runOnUiThread(() -> {
+                        handleScreenshotResult(bitmap, raceId, name, description, start, end, organizerId, hasSaved);
+                    });
+                }
             }
         });
     }
@@ -1418,57 +1454,66 @@ public class CreateRaceActivity extends BaseActivity implements
      */
     private void handleScreenshotResult(Bitmap bitmap, String raceId, String name, String description, 
                                         String start, String end, String organizerId, boolean[] hasSaved) {
-                if (hasSaved[0]) {
-            android.util.Log.w("CreateRaceActivity", "已经保存，跳过后续处理");
-            if (bitmap != null && !bitmap.isRecycled()) {
-                bitmap.recycle();
+        // 1. 立即检查并加锁，必须在主线程第一时间执行
+        if (hasSaved[0] || bitmap == null || bitmap.isRecycled()) {
+            android.util.Log.w("CreateRaceActivity", "已经处理过或图片无效，跳过");
+            return;
+        }
+        
+        // 2. 核心修改：在启动线程前就标记为已保存，防止第二个回调进入
+        hasSaved[0] = true;
+        
+        android.util.Log.d("CreateRaceActivity", "开始保存缩略图文件...");
+        
+        // 关键修复：必须在主线程创建 Bitmap 的深拷贝！
+        // 因为高德 SDK 可能会在 onMapScreenShot 方法返回后立即回收传入的 bitmap 实例。
+        // 如果我们在子线程中直接使用原 bitmap，就会遭遇 "recycled bitmap" 错误。
+        // 创建副本可以彻底切断与 SDK 内部 Bitmap 生命周期的关联。
+        final Bitmap bitmapCopy;
+        try {
+            if (bitmap.isRecycled()) {
+                 android.util.Log.e("CreateRaceActivity", "Bitmap recycled before copy.");
+                 saveRaceWithThumbnail(null, name, description, start, end, organizerId, raceId);
+                 return;
             }
-                    return;
-                }
+            bitmapCopy = bitmap.copy(bitmap.getConfig(), true);
+        } catch (Exception e) {
+            android.util.Log.e("CreateRaceActivity", "Bitmap 复制失败", e);
+            // 复制失败则直接尝试不带图保存
+            saveRaceWithThumbnail(null, name, description, start, end, organizerId, raceId);
+            return;
+        }
+
+        // 3. 异步保存（使用副本）
+        new Thread(() -> {
+            try {
+                // 在子线程再次确认图片状态
+                if (bitmapCopy.isRecycled()) return;
+
+                String thumbnailPath = MapThumbnailUtil.saveThumbnailFromBitmap(
+                        CreateRaceActivity.this, raceId, bitmapCopy);
                 
-                if (bitmap != null) {
-            // 异步保存缩略图文件
-            android.util.Log.d("CreateRaceActivity", "开始保存缩略图文件...");
-                    new Thread(() -> {
-                        String thumbnailPath = MapThumbnailUtil.saveThumbnailFromBitmap(
-                                CreateRaceActivity.this, raceId, bitmap);
-                android.util.Log.d("CreateRaceActivity", "========== 缩略图文件保存完成 ==========");
-                android.util.Log.d("CreateRaceActivity", "thumbnailPath: " + thumbnailPath);
+                android.util.Log.d("CreateRaceActivity", "缩略图保存成功: " + thumbnailPath);
                 
-                // 验证文件是否存在
-                if (thumbnailPath != null) {
-                    java.io.File file = new java.io.File(thumbnailPath);
-                    android.util.Log.d("CreateRaceActivity", "文件验证 - 存在: " + file.exists() + ", 可读: " + file.canRead() + ", 大小: " + (file.exists() ? file.length() : 0) + " 字节");
+                // 保存完成后，我们自己创建的副本可以回收了
+                if (!bitmapCopy.isRecycled()) {
+                    bitmapCopy.recycle();
                 }
-                
-                        // 保存完成后切换到主线程继续保存赛事（Realm 操作需要在主线程）
-                        if (!hasSaved[0]) {
-                            hasSaved[0] = true;
-                    android.util.Log.d("CreateRaceActivity", "切换到主线程调用 saveRaceWithThumbnail，thumbnailPath: " + thumbnailPath);
-                            final String finalThumbnailPath = thumbnailPath;
-                            new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
-                                android.util.Log.d("CreateRaceActivity", "已在主线程，调用 saveRaceWithThumbnail");
-                                saveRaceWithThumbnail(finalThumbnailPath, name, description, start, end, 
-                                        organizerId, raceId);
-                            });
-                } else {
-                    android.util.Log.w("CreateRaceActivity", "已经保存过，跳过 saveRaceWithThumbnail");
-                        }
-                    }).start();
-                } else {
-            android.util.Log.w("CreateRaceActivity", "========== 截图失败（bitmap 为 null），继续保存赛事（thumbnailPath = null）==========");
-                    // 截图失败，继续保存赛事（不包含缩略图）
-                    if (!hasSaved[0]) {
-                        hasSaved[0] = true;
-                        // 确保在主线程执行 Realm 操作
-                        new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
-                            android.util.Log.d("CreateRaceActivity", "已在主线程（bitmap为null），调用 saveRaceWithThumbnail");
-                            saveRaceWithThumbnail(null, name, description, start, end, 
-                                    organizerId, raceId);
-                        });
-                    }
-                }
+
+                // 4. 回到主线程操作 Realm
+                new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+                    saveRaceWithThumbnail(thumbnailPath, name, description, start, end, 
+                            organizerId, raceId);
+                });
+            } catch (Exception e) {
+                android.util.Log.e("CreateRaceActivity", "保存过程出错", e);
+                // 出错时尝试不带图保存，保证业务不中断
+                new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+                    saveRaceWithThumbnail(null, name, description, start, end, organizerId, raceId);
+                });
             }
+        }).start();
+    }
             
     /**
      * 备用方案：直接对 MapView 进行 View 截图
@@ -1552,39 +1597,19 @@ public class CreateRaceActivity extends BaseActivity implements
         LatLngBounds bounds = boundsBuilder.build();
         
         android.util.Log.d("CreateRaceActivity", "开始调整地图视野");
-        // 调整视野，添加边距
-        CameraUpdate cameraUpdate = CameraUpdateFactory.newLatLngBounds(bounds, 100);
-        aMap.moveCamera(cameraUpdate);
         
-        // 等待地图移动完成（使用延迟作为备用方案）
-        final boolean[] hasCalled = {false};
-        aMap.setOnCameraChangeListener(new AMap.OnCameraChangeListener() {
-            @Override
-            public void onCameraChange(CameraPosition cameraPosition) {
-                // 相机正在移动
-            }
-            
-            @Override
-            public void onCameraChangeFinish(CameraPosition cameraPosition) {
-                android.util.Log.d("CreateRaceActivity", "onCameraChangeFinish 触发");
-                // 相机移动完成，移除监听器
-                aMap.setOnCameraChangeListener(null);
-                if (!hasCalled[0] && onComplete != null) {
-                    hasCalled[0] = true;
-                    onComplete.run();
-                }
-            }
+        // 边距不应超过短边的 20%，防止坐标计算溢出导致“乱飞”
+        int safePadding = (int) (Math.min(binding.mapView.getWidth(), binding.mapView.getHeight()) * 0.2);
+        
+        // 1. 设置渲染完成监听（最保险）
+        aMap.setOnMapLoadedListener(() -> {
+            aMap.setOnMapLoadedListener(null); // 执行一次即销毁
+            if (onComplete != null) onComplete.run();
         });
-        
-        // 备用方案：如果相机回调不触发，延迟执行
-        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
-            android.util.Log.d("CreateRaceActivity", "延迟回调触发，hasCalled: " + hasCalled[0]);
-            if (!hasCalled[0] && onComplete != null) {
-                hasCalled[0] = true;
-                aMap.setOnCameraChangeListener(null); // 清理监听器
-                onComplete.run();
-            }
-        }, 300); // 延迟300ms作为备用方案（缩短响应时间）
+
+        // 2. 执行移动
+        CameraUpdate cameraUpdate = CameraUpdateFactory.newLatLngBounds(bounds, safePadding);
+        aMap.moveCamera(cameraUpdate);
     }
     
     /**
