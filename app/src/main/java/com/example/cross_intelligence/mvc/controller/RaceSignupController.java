@@ -11,6 +11,12 @@ import java.util.List;
 import java.util.UUID;
 import java.util.Date;
 
+import com.example.cross_intelligence.mvc.util.DataConverter;
+import cn.leancloud.LCObject;
+import cn.leancloud.LCQuery;
+import io.reactivex.Observer;
+import io.reactivex.disposables.Disposable;
+
 public class RaceSignupController {
     private Realm realm; // 移除final，便于动态管理
     
@@ -85,6 +91,10 @@ public class RaceSignupController {
             }
 
             realm.commitTransaction();
+            
+            // 【新增】同步报名记录到云端
+            syncSignupToCloud(signup.getId());
+            
             return true;
         } catch (Exception e) {
             if (realm.isInTransaction()) {
@@ -93,6 +103,81 @@ public class RaceSignupController {
             e.printStackTrace();
             return false;
         }
+    }
+
+    /**
+     * 【新增】同步单条报名记录到 LeanCloud
+     */
+    private void syncSignupToCloud(String signupId) {
+        Realm bgRealm = Realm.getDefaultInstance();
+        RaceSignup signup = bgRealm.where(RaceSignup.class).equalTo("id", signupId).findFirst();
+        
+        if (signup != null) {
+            RaceSignup signupCopy = bgRealm.copyFromRealm(signup);
+            bgRealm.close();
+            
+            LCObject lcSignup = DataConverter.toLeanCloud(signupCopy);
+            lcSignup.saveInBackground().subscribe(new Observer<LCObject>() {
+                @Override
+                public void onSubscribe(Disposable d) {}
+
+                @Override
+                public void onNext(LCObject savedSignup) {
+                    try (Realm r = Realm.getDefaultInstance()) {
+                        r.executeTransaction(t -> {
+                            RaceSignup localSignup = t.where(RaceSignup.class).equalTo("id", signupId).findFirst();
+                            if (localSignup != null) {
+                                localSignup.setCloudId(savedSignup.getObjectId());
+                            }
+                        });
+                    }
+                }
+
+                @Override
+                public void onError(Throwable e) {
+                    e.printStackTrace();
+                }
+
+                @Override
+                public void onComplete() {}
+            });
+        } else {
+            bgRealm.close();
+        }
+    }
+
+    /**
+     * 【新增】拉取某场赛事的所有报名记录（管理员查看报名名单时调用）
+     */
+    public void fetchSignupsFromCloud(String raceId) {
+        LCQuery<LCObject> query = new LCQuery<>("RaceSignup");
+        query.whereEqualTo("raceId", raceId);
+        query.limit(1000);
+        query.findInBackground().subscribe(new Observer<List<LCObject>>() {
+            @Override
+            public void onSubscribe(Disposable d) {}
+
+            @Override
+            public void onNext(List<LCObject> cloudSignups) {
+                if (cloudSignups != null && !cloudSignups.isEmpty()) {
+                    Realm realm = Realm.getDefaultInstance();
+                    realm.executeTransactionAsync(bgRealm -> {
+                        for (LCObject lcSignup : cloudSignups) {
+                            RaceSignup signup = DataConverter.toRealmSignup(lcSignup);
+                            bgRealm.copyToRealmOrUpdate(signup);
+                        }
+                    }, realm::close);
+                }
+            }
+
+            @Override
+            public void onError(Throwable e) {
+                e.printStackTrace();
+            }
+
+            @Override
+            public void onComplete() {}
+        });
     }
 
     /**

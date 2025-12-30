@@ -91,6 +91,7 @@
         <activity
             android:name="com.example.cross_intelligence.mvc.view.race.CreateRaceActivity"
             android:exported="false"
+            android:theme="@style/Theme.Cross_Intelligence"
             android:windowSoftInputMode="adjustPan" />
         <activity
             android:name="com.example.cross_intelligence.mvc.view.admin.RaceListActivity"

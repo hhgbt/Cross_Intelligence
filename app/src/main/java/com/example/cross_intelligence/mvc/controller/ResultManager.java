@@ -23,6 +23,12 @@ import java.util.Date;
 import io.realm.Realm;
 import io.realm.RealmResults;
 
+import com.example.cross_intelligence.mvc.util.DataConverter;
+import cn.leancloud.LCObject;
+import cn.leancloud.LCQuery;
+import io.reactivex.Observer;
+import io.reactivex.disposables.Disposable;
+
 /**
  * 负责成绩计算、罚时规则与排名。
  */
@@ -83,6 +89,83 @@ public class ResultManager {
         Realm realm = Realm.getDefaultInstance();
         realm.executeTransaction(r -> r.insertOrUpdate(result));
         realm.close();
+        // 【新增】同步成绩到云端
+        syncResultToCloud(result.getResultId());
+    }
+
+    /**
+     * 【新增】同步单条成绩到 LeanCloud
+     */
+    private void syncResultToCloud(String resultId) {
+        Realm bgRealm = Realm.getDefaultInstance();
+        Result result = bgRealm.where(Result.class).equalTo("resultId", resultId).findFirst();
+        
+        if (result != null) {
+            Result resultCopy = bgRealm.copyFromRealm(result);
+            bgRealm.close();
+            
+            LCObject lcResult = DataConverter.toLeanCloud(resultCopy);
+            lcResult.saveInBackground().subscribe(new Observer<LCObject>() {
+                @Override
+                public void onSubscribe(Disposable d) {}
+
+                @Override
+                public void onNext(LCObject savedResult) {
+                    try (Realm r = Realm.getDefaultInstance()) {
+                        r.executeTransaction(t -> {
+                            Result localResult = t.where(Result.class).equalTo("resultId", resultId).findFirst();
+                            if (localResult != null) {
+                                localResult.setCloudId(savedResult.getObjectId());
+                            }
+                        });
+                    }
+                }
+
+                @Override
+                public void onError(Throwable e) {
+                    e.printStackTrace();
+                }
+
+                @Override
+                public void onComplete() {}
+            });
+        } else {
+            bgRealm.close();
+        }
+    }
+
+    /**
+     * 【新增】拉取某场赛事的所有成绩（管理员查看成绩时调用）
+     */
+    public void fetchResultsFromCloud(String raceId) {
+        LCQuery<LCObject> query = new LCQuery<>("Result");
+        query.whereEqualTo("raceId", raceId);
+        query.limit(1000); // 假设一场比赛不超过1000人
+        query.findInBackground().subscribe(new Observer<List<LCObject>>() {
+            @Override
+            public void onSubscribe(Disposable d) {}
+
+            @Override
+            public void onNext(List<LCObject> cloudResults) {
+                if (cloudResults != null && !cloudResults.isEmpty()) {
+                    Realm realm = Realm.getDefaultInstance();
+                    realm.executeTransactionAsync(bgRealm -> {
+                        for (LCObject lcResult : cloudResults) {
+                            Result result = DataConverter.toRealmResult(lcResult);
+                            bgRealm.copyToRealmOrUpdate(result);
+                        }
+                    }, realm::close);
+                }
+            }
+
+            @Override
+            public void onError(Throwable e) {
+                e.printStackTrace();
+            }
+
+            @Override
+            public void onComplete() {}
+        });
     }
 
     public Result loadResultById(@NonNull String resultId) {

@@ -261,6 +261,9 @@ public class CheckInActivity extends BaseActivity implements
                             
                             // 如果选手已经开始比赛（有打卡记录），隐藏管理员创建的打卡点标记
                             if (raceId != null && userId != null) {
+                                // 尝试恢复比赛状态（断点续传）
+                                restoreRaceState();
+                                
                                 List<CheckInRecord> existingRecords = checkInManager.queryCheckInRecords(raceId, userId);
                                 if (!existingRecords.isEmpty()) {
                                     // 选手已打卡，只显示选手实际打卡位置
@@ -278,7 +281,9 @@ public class CheckInActivity extends BaseActivity implements
                             
                             // 如果当前没有选中打卡点，选择第一个
                             if (currentPoint == null) {
-                                currentPoint = allCheckPoints.get(0);
+                                // 智能选择下一个打卡点（而不是傻傻地选第一个）
+                                CheckPoint nextPoint = findNextTargetCheckPoint();
+                                currentPoint = nextPoint != null ? nextPoint : allCheckPoints.get(0);
                                 updateCheckPointInfo();
                             } else {
                                 // 如果当前打卡点仍存在，更新其数据
@@ -332,6 +337,97 @@ public class CheckInActivity extends BaseActivity implements
             currentPoint = null;
             UIUtil.showToast(this, "所有打卡点已被删除");
         }
+    }
+
+    /**
+     * 【断点续传】恢复比赛状态
+     * 检查是否有正在进行的比赛会话，如果有，恢复计时、轨迹记录状态和按钮
+     */
+    private void restoreRaceState() {
+        if (raceId == null || userId == null) return;
+        
+        // 1. 查询是否有活跃的会话
+        // 这里需要引入 RaceSessionManager，暂时直接通过查询打卡记录推断
+        // 逻辑：如果有起点打卡记录，且没有终点打卡记录，说明比赛正在进行中
+        
+        List<CheckInRecord> records = checkInManager.queryCheckInRecords(raceId, userId);
+        CheckInRecord startRecord = null;
+        boolean hasFinishRecord = false;
+        
+        for (CheckInRecord r : records) {
+            // 查找打卡点详情以判断类型
+            for (CheckPoint cp : allCheckPoints) {
+                if (cp.getCheckPointId().equals(r.getCheckPointId())) {
+                    if (CheckPoint.TYPE_START.equals(cp.getType())) {
+                        startRecord = r;
+                    } else if (CheckPoint.TYPE_FINISH.equals(cp.getType())) {
+                        hasFinishRecord = true;
+                    }
+                    break;
+                }
+            }
+        }
+        
+        // 如果有起点记录且没有终点记录 -> 比赛进行中
+        if (startRecord != null && !hasFinishRecord) {
+            android.util.Log.d("CheckInActivity", "检测到正在进行的比赛，开始恢复状态...");
+            
+            // 恢复开始时间
+            raceStartTime = startRecord.getTimestamp();
+            
+            // 恢复轨迹记录状态
+            // 既然比赛在进行中，我们默认认为轨迹记录应该开启
+            // 如果服务实际上没跑（比如被杀进程了），startTracking 会重新启动它
+            // 如果服务已经在跑，startTracking 会更新 Intent，不会有副作用
+            TrackRecorderService.startTracking(this, raceId, userId);
+            isTrackingEnabled = true;
+            isPaused = false;
+            
+            // 恢复按钮状态
+            if (binding.btnToggleTrack != null) {
+                binding.btnToggleTrack.setText("暂停");
+                binding.btnToggleTrack.setVisibility(View.VISIBLE);
+                updatePauseButtonStyle();
+            }
+            
+            // 恢复状态文字位置
+            if (binding.tvStatus != null) {
+                androidx.constraintlayout.widget.ConstraintLayout.LayoutParams lp =
+                        (androidx.constraintlayout.widget.ConstraintLayout.LayoutParams) binding.tvStatus.getLayoutParams();
+                lp.verticalBias = 0f; // 顶部
+                binding.tvStatus.setLayoutParams(lp);
+            }
+            
+            // 启动面板更新
+            updateHandler.post(updateRunnable);
+            
+            UIUtil.showToast(this, "已恢复比赛状态");
+        }
+    }
+    
+    /**
+     * 【智能导航】查找下一个目标打卡点
+     * 返回列表中第一个未打卡的点
+     */
+    private CheckPoint findNextTargetCheckPoint() {
+        if (allCheckPoints == null || allCheckPoints.isEmpty()) return null;
+        if (raceId == null || userId == null) return allCheckPoints.get(0);
+        
+        List<CheckInRecord> records = checkInManager.queryCheckInRecords(raceId, userId);
+        java.util.Set<String> checkedIds = new java.util.HashSet<>();
+        for (CheckInRecord r : records) {
+            checkedIds.add(r.getCheckPointId());
+        }
+        
+        // 按顺序遍历，找到第一个不在已打卡集合中的点
+        for (CheckPoint cp : allCheckPoints) {
+            if (!checkedIds.contains(cp.getCheckPointId())) {
+                return cp;
+            }
+        }
+        
+        // 如果都打完了，返回终点（或者最后一个点）
+        return allCheckPoints.get(allCheckPoints.size() - 1);
     }
 
     /**

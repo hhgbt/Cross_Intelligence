@@ -10,6 +10,18 @@ public class User extends RealmObject {
     @PrimaryKey
     private String userId;
     private String name;
+    
+    // 【新增】LeanCloud 同步字段
+    private String cloudId;
+    
+    public String getCloudId() {
+        return cloudId;
+    }
+
+    public void setCloudId(String cloudId) {
+        this.cloudId = cloudId;
+    }
+    
     private String role; // admin / player / viewer
     private String avatarUrl;
     private String phone;

@@ -79,6 +79,10 @@ dependencies {
     // 图片加载（Glide）
     implementation("com.github.bumptech.glide:glide:4.16.0")
 
+    // LeanCloud SDK (Android)
+    implementation("cn.leancloud:storage-android:8.2.28")
+    implementation("io.reactivex.rxjava2:rxandroid:2.1.1")
+
     implementation(libs.appcompat)
     implementation(libs.material)
     implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")

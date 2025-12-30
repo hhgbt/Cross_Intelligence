@@ -96,7 +96,9 @@
                         android:hint="赛事描述（规则）"
                         android:inputType="textMultiLine"
                         android:lines="3"
-                        android:maxLines="5"
+                        android:maxLines="8"
+                        android:scrollbars="vertical"
+                        android:gravity="top|start"
                         android:textColor="@color/black" />
                 </com.google.android.material.textfield.TextInputLayout>
 

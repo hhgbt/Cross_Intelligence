@@ -14,6 +14,13 @@ import io.realm.Realm;
 import io.realm.RealmList;
 import io.realm.RealmResults;
 
+import com.example.cross_intelligence.mvc.util.DataConverter;
+import cn.leancloud.LCObject;
+import io.reactivex.Observer;
+import io.reactivex.disposables.Disposable;
+
+import cn.leancloud.LCQuery;
+
 /**
  * 赛事控制器，处理创建、编辑、查询及打卡点同步。
  */
@@ -75,6 +82,7 @@ public class RaceManager {
                 race.setCreateTime(new Date()); // 设置创建时间
                 race.setSequenceNumber(sequenceNumber); // 设置序号
                 race.setThumbnailPath(thumbnailPath); // 设置缩略图路径
+                race.setSynced(false); // 标记为未同步
                 
                 // 在后台线程创建 CheckPoint 对象
                 RealmList<CheckPoint> realmPoints = new RealmList<>();
@@ -97,6 +105,9 @@ public class RaceManager {
             () -> {
                 realm.close();
                 callback.onSuccess();
+                
+                // 【新增】异步同步到 LeanCloud
+                syncRaceToCloud(raceId);
             },
             error -> {
                 realm.close();
@@ -105,7 +116,102 @@ public class RaceManager {
         );
     }
 
+    /**
+     * 将本地赛事同步到 LeanCloud
+     */
+    private void syncRaceToCloud(String raceId) {
+        // 在新线程中读取数据，避免阻塞 UI
+        Realm bgRealm = Realm.getDefaultInstance();
+        Race race = bgRealm.where(Race.class).equalTo("raceId", raceId).findFirst();
+        
+        if (race != null) {
+            // 转换为 LeanCloud 对象（需要在主线程或者有 Looper 的线程操作 Realm 对象，或者使用 copyFromRealm）
+            Race raceCopy = bgRealm.copyFromRealm(race);
+            bgRealm.close(); // 尽早关闭
+            
+            LCObject lcRace = DataConverter.toLeanCloud(raceCopy);
+            lcRace.saveInBackground().subscribe(new Observer<LCObject>() {
+                @Override
+                public void onSubscribe(Disposable d) {}
 
+                @Override
+                public void onNext(LCObject lcObject) {
+                    // 上传成功，更新本地状态
+                    try (Realm r = Realm.getDefaultInstance()) {
+                        r.executeTransaction(t -> {
+                            Race localRace = t.where(Race.class).equalTo("raceId", raceId).findFirst();
+                            if (localRace != null) {
+                                localRace.setCloudId(lcObject.getObjectId());
+                                localRace.setSynced(true);
+                            }
+                        });
+                    }
+                }
+
+                @Override
+                public void onError(Throwable e) {
+                    e.printStackTrace();
+                    // 上传失败，保持 isSynced = false，下次有机会再同步
+                }
+
+                @Override
+                public void onComplete() {}
+            });
+        } else {
+            bgRealm.close();
+        }
+    }
+
+
+
+    /**
+     * 从 LeanCloud 拉取赛事数据并同步到本地 Realm
+     * @param organizerId 如果不为 null，则只拉取该管理员创建的赛事；如果为 null，则拉取所有赛事
+     */
+    public void fetchRacesFromCloud(@androidx.annotation.Nullable String organizerId) {
+        LCQuery<LCObject> query = new LCQuery<>("Race");
+        if (organizerId != null && !organizerId.isEmpty()) {
+            query.whereEqualTo("organizerId", organizerId);
+        }
+        query.orderByDescending("updatedAt"); // 按更新时间降序
+        query.limit(100); // 限制每次拉取100条，避免数据量过大
+        
+        query.findInBackground().subscribe(new Observer<List<LCObject>>() {
+            @Override
+            public void onSubscribe(Disposable d) {}
+
+            @Override
+            public void onNext(List<LCObject> cloudRaces) {
+                if (cloudRaces != null) {
+                    Realm realm = Realm.getDefaultInstance();
+                    realm.executeTransactionAsync(bgRealm -> {
+                        for (LCObject lcRace : cloudRaces) {
+                            // 将 LeanCloud 对象转换为 Realm 对象
+                            Race race = DataConverter.toRealm(lcRace);
+                            
+                            // 关键：copyToRealmOrUpdate 会根据主键 (raceId) 自动判断是插入还是更新
+                            bgRealm.copyToRealmOrUpdate(race);
+                        }
+                    }, () -> {
+                        realm.close();
+                        // 成功后无需手动通知 UI，因为 UI 已经通过 RealmChangeListener 监听了数据库变化
+                        // 数据库一变，UI 自动刷新
+                    }, error -> {
+                        realm.close();
+                        error.printStackTrace();
+                    });
+                }
+            }
+
+            @Override
+            public void onError(Throwable e) {
+                e.printStackTrace();
+            }
+
+            @Override
+            public void onComplete() {}
+        });
+    }
 
     public void queryUpcomingRaces(@NonNull RaceListCallback callback) {
         Realm realm = Realm.getDefaultInstance();
@@ -162,6 +268,66 @@ public class RaceManager {
      * 删除指定赛事
      */
     public void deleteRace(@NonNull String raceId, @NonNull DeleteCallback callback) {
+        // 先获取 cloudId
+        Realm realm = Realm.getDefaultInstance();
+        Race race = realm.where(Race.class).equalTo("raceId", raceId).findFirst();
+        String cloudId = (race != null) ? race.getCloudId() : null;
+        realm.close();
+
+        if (cloudId != null && !cloudId.isEmpty()) {
+            // 如果已同步到云端，先从云端删除
+            LCObject object = LCObject.createWithoutData("Race", cloudId);
+            object.deleteInBackground().subscribe(new Observer<Object>() {
+                @Override
+                public void onSubscribe(Disposable d) {}
+
+                @Override
+                public void onNext(Object result) {
+                    // 云端删除成功，再删除本地
+                    // 在回调中（可能是后台线程），使用同步事务删除
+                    deleteLocalRaceSync(raceId);
+                    callback.onSuccess();
+                }
+
+                @Override
+                public void onError(Throwable e) {
+                    // 云端删除失败
+                    e.printStackTrace();
+                    callback.onError(e);
+                }
+
+                @Override
+                public void onComplete() {}
+            });
+        } else {
+            // 未同步到云端，直接删除本地
+            deleteLocalRaceAsync(raceId, callback);
+        }
+    }
+
+    /**
+     * 删除本地赛事数据（同步）
+     */
+    private void deleteLocalRaceSync(@NonNull String raceId) {
+        try (Realm realm = Realm.getDefaultInstance()) {
+            realm.executeTransaction(r -> {
+                Race race = r.where(Race.class).equalTo("raceId", raceId).findFirst();
+                if (race != null) {
+                    // 删除关联的打卡点
+                    if (race.getCheckPoints() != null) {
+                        race.getCheckPoints().deleteAllFromRealm();
+                    }
+                    // 删除赛事
+                    race.deleteFromRealm();
+                }
+            });
+        }
+    }
+
+    /**
+     * 删除本地赛事数据（异步）
+     */
+    private void deleteLocalRaceAsync(@NonNull String raceId, @NonNull DeleteCallback callback) {
         Realm realm = Realm.getDefaultInstance();
         realm.executeTransactionAsync(
             bgRealm -> {

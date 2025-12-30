@@ -17,6 +17,17 @@ public class Result extends RealmObject {
     private String resultId;
     private String raceId;
     private String userId;
+    
+    // 【新增】LeanCloud 同步字段
+    private String cloudId;
+    
+    public String getCloudId() {
+        return cloudId;
+    }
+
+    public void setCloudId(String cloudId) {
+        this.cloudId = cloudId;
+    }
     private long elapsedSeconds;
     private long penaltySeconds;
     private long totalSeconds;

@@ -174,8 +174,15 @@ public class RaceListActivity extends BaseActivity {
         // 设置下拉刷新
         binding.swipeRefresh.setColorSchemeColors(getResources().getColor(R.color.forest_green, getTheme()));
         binding.swipeRefresh.setOnRefreshListener(() -> {
+            // 【新增】拉取云端数据
+            String organizerId = PreferenceUtil.getString(this, "account", "");
+            if (!TextUtils.isEmpty(organizerId)) {
+                raceManager.fetchRacesFromCloud(organizerId);
+            }
+            // 同时加载本地数据（UI 刷新）
             loadRaces();
-            binding.swipeRefresh.setRefreshing(false);
+            // 延迟一点停止刷新动画，给同步留点视觉时间
+            binding.swipeRefresh.postDelayed(() -> binding.swipeRefresh.setRefreshing(false), 1500);
         });
 
         binding.progressMyResults.setVisibility(View.VISIBLE);
@@ -191,6 +198,9 @@ public class RaceListActivity extends BaseActivity {
             return;
         }
 
+        // 【新增】进入页面时自动同步一次云端数据
+        raceManager.fetchRacesFromCloud(organizerId);
+        
         loadRaces();
     }
 

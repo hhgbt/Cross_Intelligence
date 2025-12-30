@@ -256,6 +256,25 @@ public class CreateRaceActivity extends BaseActivity implements
         binding.etStartTime.setOnClickListener(v -> pickDateTime(binding.etStartTime));
         binding.etEndTime.setOnClickListener(v -> pickDateTime(binding.etEndTime));
 
+        // 设置描述字数限制（2000字符）
+        binding.etDescription.setFilters(new android.text.InputFilter[] {
+            new android.text.InputFilter.LengthFilter(2000)
+        });
+        // 开启计数器显示
+        binding.tilDescription.setCounterEnabled(true);
+        binding.tilDescription.setCounterMaxLength(2000);
+
+        // 允许输入框内部滚动（解决与外部 ScrollView 冲突）
+        binding.etDescription.setOnTouchListener((v, event) -> {
+            if (binding.etDescription.hasFocus()) {
+                v.getParent().requestDisallowInterceptTouchEvent(true);
+                if ((event.getAction() & android.view.MotionEvent.ACTION_MASK) == android.view.MotionEvent.ACTION_UP) {
+                    v.getParent().requestDisallowInterceptTouchEvent(false);
+                }
+            }
+            return false;
+        });
+
         // 初始化 BottomSheet 中的 RecyclerView（使用同一个 adapter）
         binding.rvCheckpointsBottomSheet.setLayoutManager(new LinearLayoutManager(this));
         binding.rvCheckpointsBottomSheet.setAdapter(adapter);

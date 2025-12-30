@@ -12,6 +12,17 @@ public class RaceSignup extends RealmObject { // 若用Realm存储，需继承Re
     private String id;
     private String userId;
     private String raceId;
+    
+    // 【新增】LeanCloud 同步字段
+    private String cloudId;
+    
+    public String getCloudId() {
+        return cloudId;
+    }
+
+    public void setCloudId(String cloudId) {
+        this.cloudId = cloudId;
+    }
     private Date signupTime;
     private String contact;
 

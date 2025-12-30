@@ -11,9 +11,31 @@ import io.realm.annotations.RealmClass;
 public class Race extends RealmObject {
 
     @PrimaryKey
-    private String raceId;
+    private String raceId; // UUID
     private String name;
     private String description;
+    
+    // ... 其他字段 ...
+    
+    // 【新增】LeanCloud 同步字段
+    private String cloudId; // 对应 LeanCloud 中的 objectId
+    private boolean isSynced; // 标记是否已同步到云端
+    
+    public String getCloudId() {
+        return cloudId;
+    }
+
+    public void setCloudId(String cloudId) {
+        this.cloudId = cloudId;
+    }
+
+    public boolean isSynced() {
+        return isSynced;
+    }
+
+    public void setSynced(boolean synced) {
+        isSynced = synced;
+    }
     private Date startTime;
     private Date endTime;
     private RealmList<CheckPoint> checkPoints;

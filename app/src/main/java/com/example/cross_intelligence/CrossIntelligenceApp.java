@@ -12,6 +12,8 @@ import com.example.cross_intelligence.mvc.db.RealmHelper;
 
 import java.security.SecureRandom;
 
+import cn.leancloud.LeanCloud;
+
 /**
  * 集中初始化第三方 SDK，应用在 AndroidManifest 中将 name 指向该类。
  */
@@ -22,6 +24,26 @@ public class CrossIntelligenceApp extends Application {
         super.onCreate();
         initRealm();
         initAmapPrivacy();
+        initLeanCloud();
+    }
+
+    private void initLeanCloud() {
+        // 开启调试日志，可以在 Logcat 中看到详细的请求和响应
+        LeanCloud.setLogLevel(cn.leancloud.LCLogger.Level.DEBUG);
+
+        // 提供 LeanCloud AppID 和 AppKey
+        String appId = "jdGmkFC5sNL62QRe38jnPW3F-MdYXbMMI";
+        String appKey = "OSzWIEpohPw5CNRxCmuqIOwQ";
+        // 注意：LeanCloud 国际版 API 域名是固定的，不需要自定义域名
+        String serverUrl = "https://jdgmkfc5.api.lncldglobal.com";
+
+        try {
+            LeanCloud.initialize(this, appId, appKey, serverUrl);
+            android.util.Log.d("LeanCloud", "Initialization success: " + serverUrl);
+        } catch (Exception e) {
+            android.util.Log.e("LeanCloud", "Initialization failed", e);
+            e.printStackTrace();
+        }
     }
 
     private void initRealm() {
