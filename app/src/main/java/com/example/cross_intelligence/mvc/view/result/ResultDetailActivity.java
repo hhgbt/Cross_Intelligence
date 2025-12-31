@@ -110,7 +110,12 @@ public class ResultDetailActivity extends BaseActivity {
         // 检查赛事是否已结束，并为未完成选手自动创建空成绩记录
         resultManager.ensureUnfinishedResultsCreated(currentResult.getRaceId());
         
-        // 重新加载成绩（可能刚刚创建了新的空成绩）
+        // 为该赛事重新计算排名（只在赛事未结束时更新排名）
+        String raceId = currentResult.getRaceId();
+        List<Result> raceResults = resultManager.loadResults(raceId);
+        resultManager.rankResults(raceResults, raceId);
+        
+        // 重新加载成绩（排名已更新）
         currentResult = resultManager.loadResultById(resultId);
         
         renderResult(currentResult);

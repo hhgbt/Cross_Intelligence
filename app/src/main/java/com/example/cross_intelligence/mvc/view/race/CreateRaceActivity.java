@@ -1398,27 +1398,32 @@ public class CreateRaceActivity extends BaseActivity implements
     private void performActualScreenshot(String raceId, String name, String description,
                                          String start, String end, String organizerId, boolean[] hasSaved,
                                          boolean wasCollapsed, int mapCardVisibility, int mapViewVisibility) {
-        android.util.Log.d("CreateRaceActivity", "开始调用 getMapScreenShot");
+        android.util.Log.d("CreateRaceActivity", "========== performActualScreenshot 开始 ==========");
+        android.util.Log.d("CreateRaceActivity", "raceId: " + raceId + ", checkPoints: " + checkPoints.size());
+        
+        // 在执行前验证路线是否已添加
+        if (routePolyline == null && checkPoints.size() >= 2) {
+            android.util.Log.d("CreateRaceActivity", "路线未添加，先添加路线");
+            updateRoutePreview();
+        }
         
         // 使用原子布尔值来确保只处理一次回调
         final java.util.concurrent.atomic.AtomicBoolean callbackHandled = new java.util.concurrent.atomic.AtomicBoolean(false);
         
+        android.util.Log.d("CreateRaceActivity", "开始调用 aMap.getMapScreenShot()");
         aMap.getMapScreenShot(new AMap.OnMapScreenShotListener() {
             @Override
             public void onMapScreenShot(Bitmap bitmap) {
+                android.util.Log.d("CreateRaceActivity", "onMapScreenShot(Bitmap) 回调触发");
+                
                 // 如果已经处理过回调，直接返回
                 if (callbackHandled.getAndSet(true)) {
                     android.util.Log.w("CreateRaceActivity", "重复触发 onMapScreenShot(Bitmap)，已忽略");
-                    // 严重注意：绝对不能在这里 recycle bitmap！
-                    // 因为高德 SDK 可能在两次回调中传递的是同一个 Bitmap 实例
-                    // 如果我们在第一次回调中正在使用（复制）这个 bitmap，而在这里把它 recycle 了，
-                    // 就会导致 copy 操作或者后续操作崩溃！
-                    // 让 GC 去处理多余的引用即可。
                     return;
                 }
 
-                android.util.Log.d("CreateRaceActivity", "========== 地图截图回调触发 ==========");
-                android.util.Log.d("CreateRaceActivity", "bitmap: " + (bitmap != null ? ("非空，尺寸: " + bitmap.getWidth() + "x" + bitmap.getHeight()) : "空"));
+                android.util.Log.d("CreateRaceActivity", "========== 地图截图回调处理 ==========");
+                android.util.Log.d("CreateRaceActivity", "bitmap: " + (bitmap != null ? ("非空，尺寸: " + bitmap.getWidth() + "x" + bitmap.getHeight() + ", recycled: " + bitmap.isRecycled()) : "空"));
                 
                 // 截图完成后，恢复地图的可见性状态（如果原本是收起状态）
                 if (wasCollapsed && binding.mapCardContainer.getVisibility() == View.VISIBLE) {
@@ -1439,22 +1444,24 @@ public class CreateRaceActivity extends BaseActivity implements
             
             @Override
             public void onMapScreenShot(Bitmap bitmap, int i) {
-                // 某些版本的 SDK 可能会同时触发两个回调，或者优先触发这个带参数的
-                // 这里的处理逻辑应该与上面一致，但必须经过原子锁检查
+                android.util.Log.d("CreateRaceActivity", "onMapScreenShot(Bitmap, int) 回调触发，i=" + i);
                 
+                // 某些版本的 SDK 可能会同时触发两个回调，或者优先触发这个带参数的
                 // 如果已经处理过回调，直接返回
                 if (callbackHandled.getAndSet(true)) {
                     android.util.Log.w("CreateRaceActivity", "重复触发 onMapScreenShot(Bitmap, int)，已忽略");
-                    // 严重注意：绝对不能在这里 recycle bitmap！
-                    // 因为高德 SDK 可能在两次回调中传递的是同一个 Bitmap 实例
-                    // 如果我们在第一次回调中正在使用（复制）这个 bitmap，而在这里把它 recycle 了，
-                    // 就会导致 copy 操作或者后续操作崩溃！
-                    // 让 GC 去处理多余的引用即可。
                     return;
                 }
                 
-                android.util.Log.d("CreateRaceActivity", "========== 地图截图回调触发 (带参数) ==========");
-                // 手动调用处理逻辑
+                android.util.Log.d("CreateRaceActivity", "========== 地图截图回调处理 (带参数) ==========");
+                android.util.Log.d("CreateRaceActivity", "bitmap: " + (bitmap != null ? ("非空，尺寸: " + bitmap.getWidth() + "x" + bitmap.getHeight() + ", recycled: " + bitmap.isRecycled()) : "空"));
+                
+                // 截图完成后，恢复地图的可见性状态
+                if (wasCollapsed && binding.mapCardContainer.getVisibility() == View.VISIBLE) {
+                    android.util.Log.d("CreateRaceActivity", "恢复地图收起状态");
+                    binding.mapCardContainer.setVisibility(mapCardVisibility);
+                    binding.mapView.setVisibility(mapViewVisibility);
+                }
                 
                 if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper()) {
                     handleScreenshotResult(bitmap, raceId, name, description, start, end, organizerId, hasSaved);
@@ -1465,6 +1472,8 @@ public class CreateRaceActivity extends BaseActivity implements
                 }
             }
         });
+        
+        android.util.Log.d("CreateRaceActivity", "========== performActualScreenshot 调用完成，等待回调 ==========");
     }
     
     
@@ -1507,27 +1516,51 @@ public class CreateRaceActivity extends BaseActivity implements
         new Thread(() -> {
             try {
                 // 在子线程再次确认图片状态
-                if (bitmapCopy.isRecycled()) return;
+                if (bitmapCopy.isRecycled()) {
+                    android.util.Log.w("CreateRaceActivity", "Bitmap 副本在子线程已被回收，尝试使用备用方案");
+                    saveRaceWithThumbnail(null, name, description, start, end, organizerId, raceId);
+                    return;
+                }
 
+                android.util.Log.d("CreateRaceActivity", "开始保存缩略图，raceId: " + raceId + ", bitmap 尺寸: " + 
+                    bitmapCopy.getWidth() + "x" + bitmapCopy.getHeight() + ", isRecycled: " + bitmapCopy.isRecycled());
+                
                 String thumbnailPath = MapThumbnailUtil.saveThumbnailFromBitmap(
                         CreateRaceActivity.this, raceId, bitmapCopy);
                 
-                android.util.Log.d("CreateRaceActivity", "缩略图保存成功: " + thumbnailPath);
+                if (thumbnailPath == null || thumbnailPath.isEmpty()) {
+                    android.util.Log.w("CreateRaceActivity", "缩略图保存返回 null/empty，可能保存失败");
+                } else {
+                    // 验证文件是否真的存在
+                    java.io.File savedFile = new java.io.File(thumbnailPath);
+                    boolean fileExists = savedFile.exists();
+                    long fileSize = fileExists ? savedFile.length() : 0;
+                    android.util.Log.d("CreateRaceActivity", "缩略图保存完成 - 路径: " + thumbnailPath + ", 文件存在: " + 
+                        fileExists + ", 文件大小: " + fileSize + " 字节");
+                    
+                    if (!fileExists) {
+                        android.util.Log.e("CreateRaceActivity", "严重警告：缩略图保存后文件不存在！");
+                    }
+                }
                 
                 // 保存完成后，我们自己创建的副本可以回收了
                 if (!bitmapCopy.isRecycled()) {
                     bitmapCopy.recycle();
+                    android.util.Log.d("CreateRaceActivity", "Bitmap 副本已回收");
                 }
 
                 // 4. 回到主线程操作 Realm
                 new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+                    android.util.Log.d("CreateRaceActivity", "准备调用 saveRaceWithThumbnail，thumbnailPath: " + thumbnailPath);
                     saveRaceWithThumbnail(thumbnailPath, name, description, start, end, 
                             organizerId, raceId);
                 });
             } catch (Exception e) {
-                android.util.Log.e("CreateRaceActivity", "保存过程出错", e);
+                android.util.Log.e("CreateRaceActivity", "保存缩略图过程出错: " + e.getMessage(), e);
+                e.printStackTrace();
                 // 出错时尝试不带图保存，保证业务不中断
                 new android.os.Handler(android.os.Looper.getMainLooper()).post(() -> {
+                    android.util.Log.w("CreateRaceActivity", "缩略图保存失败，尝试不带图保存赛事");
                     saveRaceWithThumbnail(null, name, description, start, end, organizerId, raceId);
                 });
             }
@@ -1640,6 +1673,25 @@ public class CreateRaceActivity extends BaseActivity implements
         android.util.Log.d("CreateRaceActivity", "raceId: " + raceId);
         android.util.Log.d("CreateRaceActivity", "thumbnailPath: " + thumbnailPath);
         android.util.Log.d("CreateRaceActivity", "name: " + name);
+        
+        // 【关键验证】验证缩略图文件是否真的存在
+        if (thumbnailPath != null && !thumbnailPath.isEmpty()) {
+            java.io.File thumbnailFile = new java.io.File(thumbnailPath);
+            boolean fileExists = thumbnailFile.exists();
+            long fileSize = fileExists ? thumbnailFile.length() : 0;
+            boolean fileReadable = fileExists && thumbnailFile.canRead();
+            
+            android.util.Log.d("CreateRaceActivity", "缩略图文件验证 - 存在: " + fileExists + ", 大小: " + fileSize + 
+                " 字节, 可读: " + fileReadable + ", 父目录: " + (fileExists ? thumbnailFile.getParent() : "N/A"));
+            
+            if (!fileExists) {
+                android.util.Log.e("CreateRaceActivity", "【严重】缩略图文件不存在，将以 null 路径保存");
+                thumbnailPath = null;
+            } else if (fileSize == 0) {
+                android.util.Log.e("CreateRaceActivity", "【严重】缩略图文件为空，将以 null 路径保存");
+                thumbnailPath = null;
+            }
+        }
         
         // 解析时间
         Date startDate = null;

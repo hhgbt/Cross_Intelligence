@@ -176,6 +176,70 @@ public class ResultManager {
         return copy;
     }
 
+    /**
+     * 根据已用时间计算排名
+     * 只在赛事未结束时更新排名到数据库
+     * @param results 成绩列表
+     * @param raceId 赛事ID，用于检查赛事是否已完赛
+     * @return 排序并排名后的列表（仅用于显示，不写入数据库）
+     */
+    public List<Result> rankResults(@NonNull List<Result> results, @NonNull String raceId) {
+        List<Result> sortable = new ArrayList<>(results);
+        // 按已用时间排序：DNF排在最后，已完成的按时间从少到多排序
+        sortable.sort(Comparator
+                .comparing((Result r) -> r.getStatus() == Result.Status.DNF)
+                .thenComparingLong(Result::getElapsedSeconds));
+        
+        // 计算排名
+        int rank = 1;
+        for (Result result : sortable) {
+            if (result.getStatus() == Result.Status.DNF) {
+                result.setRank(-1);
+            } else {
+                result.setRank(rank++);
+            }
+        }
+        
+        // 检查赛事是否已结束
+        // 只有赛事未结束时才更新排名到数据库
+        Realm realm = Realm.getDefaultInstance();
+        try {
+            Race race = realm.where(Race.class).equalTo("raceId", raceId).findFirst();
+            if (race != null && race.getEndTime() != null) {
+                Date now = new Date();
+                boolean isRaceEnded = race.getEndTime().before(now);
+                
+                // 只有赛事未结束时才更新排名
+                if (!isRaceEnded) {
+                    realm.beginTransaction();
+                    for (Result result : sortable) {
+                        Result realmResult = realm.where(Result.class)
+                                .equalTo("resultId", result.getResultId())
+                                .findFirst();
+                        if (realmResult != null) {
+                            realmResult.setRank(result.getRank());
+                        }
+                    }
+                    realm.commitTransaction();
+                }
+            }
+        } catch (Exception e) {
+            if (realm.isInTransaction()) {
+                realm.cancelTransaction();
+            }
+            e.printStackTrace();
+        } finally {
+            realm.close();
+        }
+        
+        return sortable;
+    }
+    
+    /**
+     * 重载方法：用于兼容旧的调用方式（仅计算排名，不写入数据库）
+     * @deprecated 请使用 rankResults(List, String) 方法
+     */
+    @Deprecated
     public List<Result> rankResults(@NonNull List<Result> results) {
         List<Result> sortable = new ArrayList<>(results);
         // 删除罚时后，按已用时间排序

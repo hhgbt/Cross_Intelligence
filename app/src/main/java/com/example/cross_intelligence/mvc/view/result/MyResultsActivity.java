@@ -164,16 +164,8 @@ public class MyResultsActivity extends BaseActivity implements MyResultAdapter.O
         binding.progressMyResults.setVisibility(View.VISIBLE);
         
         // 清空现有数据
-        int completedSize = completedResults.size();
-        int abnormalSize = abnormalResults.size();
         completedResults.clear();
         abnormalResults.clear();
-        if (completedSize > 0) {
-            completedAdapter.notifyItemRangeRemoved(0, completedSize);
-        }
-        if (abnormalSize > 0) {
-            abnormalAdapter.notifyItemRangeRemoved(0, abnormalSize);
-        }
         
         // 查询该用户的所有成绩
         List<Result> results = resultManager.loadResultsByUserId(currentUserId);
@@ -185,10 +177,13 @@ public class MyResultsActivity extends BaseActivity implements MyResultAdapter.O
         List<String> signedUpRaceIds = signupController.getUserSignedUpRaceIds(currentUserId);
         for (String raceId : signedUpRaceIds) {
             resultManager.ensureUnfinishedResultsCreated(raceId);
+            // 为每个赛事重新计算排名（只在赛事未结束时更新排名）
+            List<Result> raceResults = resultManager.loadResults(raceId);
+            resultManager.rankResults(raceResults, raceId);
         }
         signupController.close();
         
-        // 重新查询成绩（可能刚刚创建了新的空成绩记录）
+        // 重新查询成绩（可能刚刚创建了新的空成绩记录，且排名已更新）
         results = resultManager.loadResultsByUserId(currentUserId);
         
         // 分类成绩：已完成和异常成绩（DNF）
@@ -203,12 +198,8 @@ public class MyResultsActivity extends BaseActivity implements MyResultAdapter.O
         }
         
         // 通知适配器数据已更新
-        if (completedResults.size() > 0) {
-            completedAdapter.notifyItemRangeInserted(0, completedResults.size());
-        }
-        if (abnormalResults.size() > 0) {
-            abnormalAdapter.notifyItemRangeInserted(0, abnormalResults.size());
-        }
+        completedAdapter.notifyDataSetChanged();
+        abnormalAdapter.notifyDataSetChanged();
         
         // 更新UI（统计信息和Tab显示）
         updateUI();

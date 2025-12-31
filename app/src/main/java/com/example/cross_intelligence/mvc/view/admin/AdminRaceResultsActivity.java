@@ -144,7 +144,7 @@ public class AdminRaceResultsActivity extends BaseActivity {
         int previousSize = resultList.size();
         resultList.clear();
         List<Result> results = resultManager.loadResults(raceId);
-        resultList.addAll(resultManager.rankResults(results));
+        resultList.addAll(resultManager.rankResults(results, raceId));
         
         if (previousSize > 0) {
             adapter.notifyItemRangeRemoved(0, previousSize);

@@ -432,8 +432,36 @@ public class RaceDetailActivity extends BaseActivity {
                 hiddenAMap.setOnMapLoadedListener(() -> {
                     android.util.Log.d("RaceDetailActivity", "地图加载完成，开始截图");
                     hiddenAMap.getMapScreenShot(new AMap.OnMapScreenShotListener() {
+                        private boolean screenshotHandled = false;
+                        
                         @Override
                         public void onMapScreenShot(Bitmap bitmap) {
+                            if (screenshotHandled) {
+                                android.util.Log.w("RaceDetailActivity", "重复触发截图回调，已忽略");
+                                return;
+                            }
+                            screenshotHandled = true;
+                            
+                            android.util.Log.d("RaceDetailActivity", "onMapScreenShot(Bitmap) 触发");
+                            handleGeneratedScreenshot(bitmap, hiddenMapView);
+                        }
+                        
+                        @Override
+                        public void onMapScreenShot(Bitmap bitmap, int i) {
+                            if (screenshotHandled) {
+                                android.util.Log.w("RaceDetailActivity", "重复触发截图回调(int)，已忽略");
+                                return;
+                            }
+                            screenshotHandled = true;
+                            
+                            android.util.Log.d("RaceDetailActivity", "onMapScreenShot(Bitmap, int) 触发，i=" + i);
+                            handleGeneratedScreenshot(bitmap, hiddenMapView);
+                        }
+                        
+                        /**
+                         * 统一处理截图结果
+                         */
+                        private void handleGeneratedScreenshot(Bitmap bitmap, MapView mapViewToClean) {
                             if (bitmap != null && !bitmap.isRecycled()) {
                                 final Bitmap finalBitmap = bitmap;
                                 runOnUiThread(() -> {
@@ -442,7 +470,7 @@ public class RaceDetailActivity extends BaseActivity {
                                     android.util.Log.d("RaceDetailActivity", "路线预览图生成成功，尺寸: " + finalBitmap.getWidth() + "x" + finalBitmap.getHeight());
                                 });
                             } else {
-                                android.util.Log.w("RaceDetailActivity", "地图截图失败，显示占位符");
+                                android.util.Log.w("RaceDetailActivity", "地图截图失败或 bitmap 为空，显示占位符");
                                 runOnUiThread(() -> {
                                     binding.ivRouteThumbnail.setImageResource(android.R.drawable.ic_menu_mapmode);
                                     binding.ivRouteThumbnail.setContentDescription("路线图（生成失败）");
@@ -450,13 +478,13 @@ public class RaceDetailActivity extends BaseActivity {
                             }
                             
                             // 清理地图资源
-                            hiddenMapView.onPause();
-                            hiddenMapView.onDestroy();
-                        }
-                        
-                        @Override
-                        public void onMapScreenShot(Bitmap bitmap, int i) {
-                            // 这里留空！不要调用上面的方法
+                            try {
+                                mapViewToClean.onPause();
+                                mapViewToClean.onDestroy();
+                                android.util.Log.d("RaceDetailActivity", "隐藏地图资源已清理");
+                            } catch (Exception e) {
+                                android.util.Log.w("RaceDetailActivity", "清理地图资源时出错", e);
+                            }
                         }
                     });
                 });
