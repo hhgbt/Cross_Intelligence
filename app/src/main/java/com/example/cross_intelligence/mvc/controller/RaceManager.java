@@ -63,6 +63,10 @@ public class RaceManager {
      * 使用指定 ID 创建赛事（用于二维码生成）
      */
     public void createRaceWithId(String raceId, String name, String description, Date start, Date end, List<CheckPointData> pointsData, String organizerId, String thumbnailPath, @NonNull SaveCallback callback) {
+        android.util.Log.d("RaceManager", "========== createRaceWithId() 被调用 ==========");
+        android.util.Log.d("RaceManager", "raceId: " + raceId);
+        android.util.Log.d("RaceManager", "接收到的 thumbnailPath: " + thumbnailPath);
+        
         Realm realm = Realm.getDefaultInstance();
         realm.executeTransactionAsync(
             bgRealm -> {
@@ -81,7 +85,13 @@ public class RaceManager {
                 race.setOrganizerId(organizerId);
                 race.setCreateTime(new Date()); // 设置创建时间
                 race.setSequenceNumber(sequenceNumber); // 设置序号
-                race.setThumbnailPath(thumbnailPath); // 设置缩略图路径
+                
+                // 【关键】缓略图路径的设置
+                android.util.Log.d("RaceManager", "【事务】设置 thumbnailPath 前，race.getThumbnailPath(): " + race.getThumbnailPath());
+                race.setThumbnailPath(thumbnailPath);
+                android.util.Log.d("RaceManager", "【事务】设置 thumbnailPath 后，race.getThumbnailPath(): " + race.getThumbnailPath());
+                android.util.Log.d("RaceManager", "【事务】参数 thumbnailPath: " + thumbnailPath);
+                
                 race.setSynced(false); // 标记为未同步
                 
                 // 在后台线程创建 CheckPoint 对象
@@ -101,8 +111,22 @@ public class RaceManager {
                     realmPoints.add(newPoint);
                 }
                 race.setCheckPoints(realmPoints);
+                
+                android.util.Log.d("RaceManager", "事务内 - Race 对象创建完成，thumbnailPath: " + race.getThumbnailPath());
             },
             () -> {
+                android.util.Log.d("RaceManager", "事务成功完成");
+                
+                // 验证数据库中的数据
+                Realm verifyRealm = Realm.getDefaultInstance();
+                Race savedRace = verifyRealm.where(Race.class).equalTo("raceId", raceId).findFirst();
+                if (savedRace != null) {
+                    android.util.Log.d("RaceManager", "【验证】数据库中的 thumbnailPath: " + savedRace.getThumbnailPath());
+                } else {
+                    android.util.Log.e("RaceManager", "【验证失败】无法从数据库读取刚创建的赛事");
+                }
+                verifyRealm.close();
+                
                 realm.close();
                 callback.onSuccess();
                 
@@ -110,6 +134,8 @@ public class RaceManager {
                 syncRaceToCloud(raceId);
             },
             error -> {
+                android.util.Log.e("RaceManager", "【错误】事务执行失败: " + error.getMessage(), error);
+                error.printStackTrace();
                 realm.close();
                 callback.onError(error);
             }
@@ -189,7 +215,16 @@ public class RaceManager {
                             // 将 LeanCloud 对象转换为 Realm 对象
                             Race race = DataConverter.toRealm(lcRace);
                             
-                            // 关键：copyToRealmOrUpdate 会根据主键 (raceId) 自动判断是插入还是更新
+                            // 【关键修复】保留本地的 thumbnailPath，避免被云端的 null 覆盖
+                            Race existingRace = bgRealm.where(Race.class)
+                                    .equalTo("raceId", race.getRaceId())
+                                    .findFirst();
+                            if (existingRace != null && existingRace.getThumbnailPath() != null) {
+                                // 保留本地已有的缩略图路径
+                                race.setThumbnailPath(existingRace.getThumbnailPath());
+                            }
+                            
+                            // copyToRealmOrUpdate 会根据主键 (raceId) 自动判断是插入还是更新
                             bgRealm.copyToRealmOrUpdate(race);
                         }
                     }, () -> {
@@ -274,8 +309,12 @@ public class RaceManager {
         String cloudId = (race != null) ? race.getCloudId() : null;
         realm.close();
 
+        android.util.Log.d("RaceManager", "========== deleteRace 开始 ==========");
+        android.util.Log.d("RaceManager", "raceId: " + raceId + ", cloudId: " + cloudId);
+
         if (cloudId != null && !cloudId.isEmpty()) {
             // 如果已同步到云端，先从云端删除
+            android.util.Log.d("RaceManager", "赛事已同步到云端，先删除云端数据");
             LCObject object = LCObject.createWithoutData("Race", cloudId);
             object.deleteInBackground().subscribe(new Observer<Object>() {
                 @Override
@@ -283,17 +322,28 @@ public class RaceManager {
 
                 @Override
                 public void onNext(Object result) {
+                    android.util.Log.d("RaceManager", "云端赛事删除成功，现在删除本地数据");
                     // 云端删除成功，再删除本地
-                    // 在回调中（可能是后台线程），使用同步事务删除
                     deleteLocalRaceSync(raceId);
+                    android.util.Log.d("RaceManager", "本地赛事删除成功");
                     callback.onSuccess();
                 }
 
                 @Override
                 public void onError(Throwable e) {
-                    // 云端删除失败
-                    e.printStackTrace();
-                    callback.onError(e);
+                    // 云端删除失败，但仍然尝试删除本地
+                    android.util.Log.e("RaceManager", "云端赛事删除失败: " + e.getMessage(), e);
+                    android.util.Log.d("RaceManager", "继续删除本地数据");
+                    
+                    try {
+                        deleteLocalRaceSync(raceId);
+                        android.util.Log.d("RaceManager", "本地赛事已删除，但云端删除失败");
+                        // 返回本地删除成功（云端失败是网络问题，不应该阻断本地删除）
+                        callback.onSuccess();
+                    } catch (Exception localError) {
+                        android.util.Log.e("RaceManager", "本地赛事删除也失败: " + localError.getMessage(), localError);
+                        callback.onError(new Exception("云端删除失败且本地删除也失败", e));
+                    }
                 }
 
                 @Override
@@ -301,6 +351,7 @@ public class RaceManager {
             });
         } else {
             // 未同步到云端，直接删除本地
+            android.util.Log.d("RaceManager", "赛事未同步到云端，直接删除本地数据");
             deleteLocalRaceAsync(raceId, callback);
         }
     }

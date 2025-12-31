@@ -236,22 +236,42 @@ public class RaceDiscoveryAdapter extends RecyclerView.Adapter<RaceDiscoveryAdap
         private void loadRaceImage(Race race) {
             String thumbnailPath = race.getThumbnailPath();
             android.content.Context context = itemView.getContext();
-            
-            // 使用 Glide 加载缩略图，自动处理缓存和异步加载
+
+            // 1) 优先使用 Race 自带的 thumbnailPath
             if (thumbnailPath != null && !thumbnailPath.isEmpty()) {
                 java.io.File imageFile = new java.io.File(thumbnailPath);
                 if (imageFile.exists() && imageFile.canRead() && imageFile.length() > 0) {
-                    // 使用 Glide 加载图片文件
                     Glide.with(context)
                             .load(imageFile)
-                            .placeholder(android.R.drawable.ic_menu_mapmode) // 加载中的占位图
-                            .error(android.R.drawable.ic_menu_mapmode) // 加载失败时的占位图
-                            .centerCrop() // 裁剪填充
+                            .placeholder(android.R.drawable.ic_menu_mapmode)
+                            .error(android.R.drawable.ic_menu_mapmode)
+                            .skipMemoryCache(true)
+                            .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.NONE)
+                            .centerCrop()
                             .into(ivRaceImage);
                     return;
                 }
             }
-            // 如果没有缩略图，显示默认占位图
+
+            // 2) 回退：根据 MapThumbnailUtil 的命名规则推算本地路径（files/race_thumbnails/<raceId>_thumbnail.png）
+            String raceId = race.getRaceId();
+            if (raceId != null && !raceId.isEmpty()) {
+                java.io.File fallbackFile = new java.io.File(context.getFilesDir(),
+                        "race_thumbnails/" + raceId + "_thumbnail.png");
+                if (fallbackFile.exists() && fallbackFile.canRead() && fallbackFile.length() > 0) {
+                    Glide.with(context)
+                            .load(fallbackFile)
+                            .placeholder(android.R.drawable.ic_menu_mapmode)
+                            .error(android.R.drawable.ic_menu_mapmode)
+                            .skipMemoryCache(true)
+                            .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.NONE)
+                            .centerCrop()
+                            .into(ivRaceImage);
+                    return;
+                }
+            }
+
+            // 3) 没有缩略图则显示占位图
             Glide.with(context)
                     .load(android.R.drawable.ic_menu_mapmode)
                     .into(ivRaceImage);

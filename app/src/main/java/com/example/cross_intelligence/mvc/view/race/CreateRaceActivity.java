@@ -1674,6 +1674,15 @@ public class CreateRaceActivity extends BaseActivity implements
         android.util.Log.d("CreateRaceActivity", "thumbnailPath: " + thumbnailPath);
         android.util.Log.d("CreateRaceActivity", "name: " + name);
         
+        // 【诊断】详细检查 thumbnailPath
+        android.util.Log.d("CreateRaceActivity", "thumbnailPath == null: " + (thumbnailPath == null));
+        if (thumbnailPath != null) {
+            android.util.Log.d("CreateRaceActivity", "thumbnailPath.isEmpty(): " + thumbnailPath.isEmpty());
+            android.util.Log.d("CreateRaceActivity", "thumbnailPath.length(): " + thumbnailPath.length());
+            android.util.Log.d("CreateRaceActivity", "thumbnailPath 字符串长度: " + thumbnailPath.length() + 
+                ", 首字符: " + (thumbnailPath.length() > 0 ? (int)thumbnailPath.charAt(0) : "N/A"));
+        }
+        
         // 【关键验证】验证缩略图文件是否真的存在
         if (thumbnailPath != null && !thumbnailPath.isEmpty()) {
             java.io.File thumbnailFile = new java.io.File(thumbnailPath);
@@ -1691,7 +1700,12 @@ public class CreateRaceActivity extends BaseActivity implements
                 android.util.Log.e("CreateRaceActivity", "【严重】缩略图文件为空，将以 null 路径保存");
                 thumbnailPath = null;
             }
+        } else {
+            // 【诊断】记录为什么文件验证被跳过
+            android.util.Log.w("CreateRaceActivity", "跳过文件验证 - thumbnailPath 为 null 或空字符串");
         }
+        
+        android.util.Log.d("CreateRaceActivity", "文件验证完成，最终 thumbnailPath: " + thumbnailPath);
         
         // 解析时间
         Date startDate = null;
@@ -1737,6 +1751,22 @@ public class CreateRaceActivity extends BaseActivity implements
         RaceManager.SaveCallback callback = new RaceManager.SaveCallback() {
             @Override
             public void onSuccess() {
+                // 【调试】立即检查是否保存成功
+                io.realm.Realm checkRealm = io.realm.Realm.getDefaultInstance();
+                com.example.cross_intelligence.mvc.model.Race checkRace = checkRealm.where(
+                        com.example.cross_intelligence.mvc.model.Race.class)
+                        .equalTo("raceId", raceId)
+                        .findFirst();
+                
+                if (checkRace != null) {
+                    String savedThumbnail = checkRace.getThumbnailPath();
+                    android.util.Log.d("CreateRaceActivity", "【callback.onSuccess】数据库中保存的 thumbnailPath: " + savedThumbnail);
+                    android.util.Log.d("CreateRaceActivity", "【callback.onSuccess】是否为 null: " + (savedThumbnail == null));
+                } else {
+                    android.util.Log.e("CreateRaceActivity", "【callback.onSuccess】赛事未保存到数据库");
+                }
+                checkRealm.close();
+                
                 // 在主线程更新UI
                 runOnUiThread(() -> {
                     clearDraft(); // 清除草稿
@@ -1781,8 +1811,25 @@ public class CreateRaceActivity extends BaseActivity implements
         } else {
             // 创建模式：使用指定的 raceId 创建新赛事
             android.util.Log.d("CreateRaceActivity", "调用 createRaceWithId()");
+            
             raceManager.createRaceWithId(raceId, name, description, startDate, endDate, 
                     checkpointDataList, organizerId, thumbnailPath, callback);
+            
+            // 【调试】调用后延迟1秒检查数据库
+            new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+                io.realm.Realm debugRealm = io.realm.Realm.getDefaultInstance();
+                com.example.cross_intelligence.mvc.model.Race savedRace = debugRealm.where(
+                        com.example.cross_intelligence.mvc.model.Race.class)
+                        .equalTo("raceId", raceId)
+                        .findFirst();
+                
+                if (savedRace != null) {
+                    android.util.Log.d("CreateRaceActivity", "【DEBUG】1秒后查询 - thumbnailPath: " + savedRace.getThumbnailPath());
+                } else {
+                    android.util.Log.e("CreateRaceActivity", "【DEBUG】1秒后查询 - 赛事未找到");
+                }
+                debugRealm.close();
+            }, 1000);
         }
         android.util.Log.d("CreateRaceActivity", "========== saveRaceWithThumbnail() 调用完成 ==========");
     }

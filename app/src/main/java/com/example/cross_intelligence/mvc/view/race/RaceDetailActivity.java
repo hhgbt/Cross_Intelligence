@@ -299,6 +299,50 @@ public class RaceDetailActivity extends BaseActivity {
     /**
      * 加载路线图（轨迹缩略图）
      */
+    @Nullable
+    private String resolveThumbnailPathFallback(@NonNull Race race) {
+        String thumbnailPath = race.getThumbnailPath();
+        if (thumbnailPath != null && !thumbnailPath.isEmpty()) {
+            java.io.File file = new java.io.File(thumbnailPath);
+            if (file.exists() && file.canRead() && file.length() > 0) {
+                return thumbnailPath;
+            }
+        }
+
+        // fallback：根据 MapThumbnailUtil 的命名规则推算本地文件路径
+        String raceId = race.getRaceId();
+        if (raceId == null || raceId.isEmpty()) {
+            return null;
+        }
+
+        java.io.File fallbackFile = new java.io.File(getFilesDir(), "race_thumbnails/" + raceId + "_thumbnail.png");
+        if (!fallbackFile.exists() || !fallbackFile.canRead() || fallbackFile.length() <= 0) {
+            return null;
+        }
+
+        String fallbackPath = fallbackFile.getAbsolutePath();
+        // 回写到 Realm：避免下次还丢（只写本地，不同步云端）
+        try {
+            io.realm.Realm realm = io.realm.Realm.getDefaultInstance();
+            realm.executeTransaction(r -> {
+                Race managed = r.where(Race.class).equalTo("raceId", raceId).findFirst();
+                if (managed != null) {
+                    String current = managed.getThumbnailPath();
+                    if (current == null || current.isEmpty()) {
+                        managed.setThumbnailPath(fallbackPath);
+                    }
+                }
+            });
+            realm.close();
+        } catch (Exception e) {
+            android.util.Log.w("RaceDetailActivity", "回写 thumbnailPath 失败: " + e.getMessage());
+        }
+
+        // 同步更新传入的 copy 对象，便于本次继续用
+        race.setThumbnailPath(fallbackPath);
+        return fallbackPath;
+    }
+
     private void loadRouteThumbnail(Race race) {
         if (binding.ivRouteThumbnail == null) {
             android.util.Log.w("RaceDetailActivity", "ivRouteThumbnail 为 null");
@@ -315,45 +359,31 @@ public class RaceDetailActivity extends BaseActivity {
         binding.ivRouteThumbnail.setContentDescription("路线图");
         binding.ivRouteThumbnail.setVisibility(View.VISIBLE);
 
-        String thumbnailPath = race.getThumbnailPath();
-        android.util.Log.d("RaceDetailActivity", "========== 开始加载路线图 ==========");
-        android.util.Log.d("RaceDetailActivity", "raceId: " + race.getRaceId());
-        android.util.Log.d("RaceDetailActivity", "thumbnailPath: " + thumbnailPath);
+        String thumbnailPath = resolveThumbnailPathFallback(race);
         
         if (thumbnailPath != null && !thumbnailPath.isEmpty()) {
-            // 检查文件是否存在、可读、大小
-            java.io.File file = new java.io.File(thumbnailPath);
-            boolean fileExists = file.exists();
-            boolean fileReadable = file.canRead();
-            long fileSize = fileExists ? file.length() : 0;
-            
-            android.util.Log.d("RaceDetailActivity", "文件检查 - 存在: " + fileExists + ", 可读: " + fileReadable + ", 大小: " + fileSize + " 字节");
-            
-            if (fileExists && fileReadable && fileSize > 0) {
-                // 使用 Glide 异步加载本地缩略图，内部已使用线程池与缓存
-                android.util.Log.d("RaceDetailActivity", "使用 Glide 加载缩略图: " + thumbnailPath);
-                Glide.with(this)
-                        .load(thumbnailPath)
-                        .placeholder(android.R.drawable.ic_menu_mapmode)
-                        .error(android.R.drawable.ic_menu_mapmode)
-                        .listener(new RequestListener<android.graphics.drawable.Drawable>() {
-                            @Override
-                            public boolean onLoadFailed(@Nullable GlideException e, Object model, Target<android.graphics.drawable.Drawable> target, boolean isFirstResource) {
-                                android.util.Log.e("RaceDetailActivity", "Glide 加载失败: " + (e != null ? e.getMessage() : "未知错误"), e);
-                                return false;
-                            }
+            // 使用 Glide 异步加载本地缩略图
+            java.io.File imageFile = new java.io.File(thumbnailPath);
+            Glide.with(this)
+                    .load(imageFile)
+                    .placeholder(android.R.drawable.ic_menu_mapmode)
+                    .error(android.R.drawable.ic_menu_mapmode)
+                    .skipMemoryCache(true)
+                    .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.NONE)
+                    .listener(new RequestListener<android.graphics.drawable.Drawable>() {
+                        @Override
+                        public boolean onLoadFailed(@Nullable GlideException e, Object model, Target<android.graphics.drawable.Drawable> target, boolean isFirstResource) {
+                            android.util.Log.e("RaceDetailActivity", "Glide 加载失败: " + (e != null ? e.getMessage() : "未知错误"), e);
+                            return false;
+                        }
 
-                            @Override
-                            public boolean onResourceReady(android.graphics.drawable.Drawable resource, Object model, Target<android.graphics.drawable.Drawable> target, DataSource dataSource, boolean isFirstResource) {
-                                android.util.Log.d("RaceDetailActivity", "Glide 加载成功");
-                                return false;
-                            }
-                        })
-                        .into(binding.ivRouteThumbnail);
-            } else {
-                android.util.Log.w("RaceDetailActivity", "文件不存在、不可读或大小为0，尝试动态生成路线预览图");
-                generateRoutePreview(race);
-            }
+                        @Override
+                        public boolean onResourceReady(android.graphics.drawable.Drawable resource, Object model, Target<android.graphics.drawable.Drawable> target, DataSource dataSource, boolean isFirstResource) {
+                            android.util.Log.d("RaceDetailActivity", "Glide 加载成功");
+                            return false;
+                        }
+                    })
+                    .into(binding.ivRouteThumbnail);
         } else {
             // 如果没有缩略图路径，根据打卡点动态生成路线预览图
             android.util.Log.d("RaceDetailActivity", "没有缩略图路径，尝试动态生成路线预览图");
@@ -714,15 +744,13 @@ public class RaceDetailActivity extends BaseActivity {
             return;
         }
 
-        String thumbnailPath = currentRace.getThumbnailPath();
-        android.util.Log.d("RaceDetailActivity", "对话框 - thumbnailPath: " + thumbnailPath);
+        String thumbnailPath = resolveThumbnailPathFallback(currentRace);
         
         if (thumbnailPath == null || thumbnailPath.isEmpty()) {
-            android.util.Log.w("RaceDetailActivity", "对话框 - thumbnailPath 为空");
             UIUtil.showToast(this, "暂无路线图");
             return;
         }
-        
+
         // 检查文件是否存在、可读、大小
         java.io.File file = new java.io.File(thumbnailPath);
         boolean fileExists = file.exists();
@@ -742,10 +770,13 @@ public class RaceDetailActivity extends BaseActivity {
         ImageView ivThumbnail = dialogView.findViewById(R.id.ivRouteThumbnail);
         
         android.util.Log.d("RaceDetailActivity", "对话框 - 使用 Glide 加载: " + thumbnailPath);
+        java.io.File imageFile = new java.io.File(thumbnailPath);
         Glide.with(this)
-                .load(thumbnailPath)
+            .load(imageFile)
                 .placeholder(android.R.drawable.ic_menu_mapmode)
                 .error(android.R.drawable.ic_menu_mapmode)
+            .skipMemoryCache(true)
+            .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.NONE)
                 .listener(new RequestListener<android.graphics.drawable.Drawable>() {
                     @Override
                     public boolean onLoadFailed(@Nullable GlideException e, Object model, Target<android.graphics.drawable.Drawable> target, boolean isFirstResource) {

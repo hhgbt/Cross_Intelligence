@@ -210,11 +210,22 @@ public class RaceListActivity extends BaseActivity {
     private void loadRaces() {
         String organizerId = PreferenceUtil.getString(this, "account", "");
         if (TextUtils.isEmpty(organizerId)) {
+            android.util.Log.w("RaceListActivity", "organizerId 为空，无法加载赛事");
             return;
         }
 
+        android.util.Log.d("RaceListActivity", "========== 开始加载赛事列表 ==========");
+        android.util.Log.d("RaceListActivity", "organizerId: " + organizerId);
+        binding.progressMyResults.setVisibility(View.VISIBLE);
+
+        // 【改进】删除后先同步云端数据，确保删除同步
+        android.util.Log.d("RaceListActivity", "先从云端同步最新赛事数据");
+        raceManager.fetchRacesFromCloud(organizerId);
+
         // 查询该管理员创建的所有赛事
         raceManager.queryRacesByOrganizer(organizerId, races -> {
+            android.util.Log.d("RaceListActivity", "从本地数据库加载到 " + races.size() + " 个赛事");
+            
             runOnUiThread(() -> {
                 // 清空现有数据
                 int notStartedSize = notStartedRaces.size();
@@ -238,10 +249,13 @@ public class RaceListActivity extends BaseActivity {
                 for (Race race : races) {
                     if (isRaceEnded(race, now)) {
                         endedRaces.add(race);
+                        android.util.Log.d("RaceListActivity", "赛事 " + race.getName() + " 分类为：已结束");
                     } else if (isRaceNotStarted(race, now)) {
                         notStartedRaces.add(race);
+                        android.util.Log.d("RaceListActivity", "赛事 " + race.getName() + " 分类为：未开始");
                     } else {
                         ongoingRaces.add(race);
+                        android.util.Log.d("RaceListActivity", "赛事 " + race.getName() + " 分类为：进行中");
                     }
                 }
 
@@ -256,6 +270,9 @@ public class RaceListActivity extends BaseActivity {
                 Collections.sort(ongoingRaces, timeComparator);
                 Collections.sort(endedRaces, timeComparator);
 
+                android.util.Log.d("RaceListActivity", "排序完成 - 未开始: " + notStartedRaces.size() + 
+                    ", 进行中: " + ongoingRaces.size() + ", 已结束: " + endedRaces.size());
+
                 // 通知适配器数据已更新
                 notStartedAdapter.notifyDataSetChanged();
                 ongoingAdapter.notifyDataSetChanged();
@@ -265,6 +282,7 @@ public class RaceListActivity extends BaseActivity {
                 updateUI();
 
                 binding.progressMyResults.setVisibility(View.GONE);
+                android.util.Log.d("RaceListActivity", "========== 赛事列表加载完成 ==========");
             });
         });
     }
@@ -357,12 +375,21 @@ public class RaceListActivity extends BaseActivity {
                 .setTitle("确认删除")
                 .setMessage("确定要删除赛事 \"" + race.getName() + "\" 吗？此操作不可恢复。")
                 .setPositiveButton("删除", (dialog, which) -> {
+                    android.util.Log.d("RaceListActivity", "用户确认删除赛事: " + race.getRaceId() + " - " + race.getName());
+                    
+                    // 显示删除进行中的提示
+                    UIUtil.showToast(RaceListActivity.this, "正在删除赛事...");
+                    binding.progressMyResults.setVisibility(View.VISIBLE);
+                    
                     // 使用回调确保删除完成后立即刷新UI
                     raceManager.deleteRace(race.getRaceId(), new RaceManager.DeleteCallback() {
                         @Override
                         public void onSuccess() {
+                            android.util.Log.d("RaceListActivity", "赛事删除成功，准备刷新列表");
                             runOnUiThread(() -> {
+                                binding.progressMyResults.setVisibility(View.GONE);
                                 UIUtil.showToast(RaceListActivity.this, "赛事已删除");
+                                android.util.Log.d("RaceListActivity", "显示删除成功提示，现在刷新列表");
                                 // 删除成功后立即刷新列表
                                 loadRaces();
                             });
@@ -370,8 +397,15 @@ public class RaceListActivity extends BaseActivity {
 
                         @Override
                         public void onError(@NonNull Throwable error) {
+                            android.util.Log.e("RaceListActivity", "赛事删除失败: " + error.getMessage(), error);
                             runOnUiThread(() -> {
-                                UIUtil.showToast(RaceListActivity.this, "删除失败：" + error.getMessage());
+                                binding.progressMyResults.setVisibility(View.GONE);
+                                String errorMsg = error.getMessage();
+                                if (errorMsg == null || errorMsg.isEmpty()) {
+                                    errorMsg = "未知错误";
+                                }
+                                UIUtil.showToast(RaceListActivity.this, "删除失败：" + errorMsg);
+                                android.util.Log.e("RaceListActivity", "显示删除失败提示");
                             });
                         }
                     });
